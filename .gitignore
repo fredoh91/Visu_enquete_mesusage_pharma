@@ -1,0 +1,9 @@
+.env
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user
+Doc/
+INSTRUCTIONS.md
+INSTRUCTIONS.html
+INSTRUCTIONS_files/

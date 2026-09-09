@@ -1,0 +1,51 @@
+/* ============================================================================
+   custom.css — Styles personnalisés de l'application Shiny
+   ============================================================================ */
+
+/* Corps de page */
+body {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background-color: #f5f7fa;
+}
+
+/* Bloc du message de test (validation étape 1) */
+.message-test {
+  margin: 24px 0;
+  padding: 20px 24px;
+  background-color: #eafaf1;
+  border-left: 6px solid #18bc9c;
+  border-radius: 6px;
+}
+
+.message-test h3 {
+  margin-top: 0;
+  color: #145a32;
+}
+
+/* Titre des cartes */
+.card-header {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+/* Tableau de données */
+table.dataTable thead th {
+  background-color: #34495e;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+table.dataTable tbody tr:hover {
+  background-color: #ecf0f1;
+}
+
+/* Alertes (connexion / données manquantes) */
+.alert {
+  margin-top: 16px;
+  border-radius: 6px;
+}
+
+/* Boutons et contrôles */
+.btn {
+  border-radius: 4px;
+}
