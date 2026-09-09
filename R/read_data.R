@@ -29,11 +29,19 @@ medoc_reg_path <- function() {
 # --- Lecture MEDOC_REG ------------------------------------------------------
 #' Importe le fichier data/MEDOC_REG.xlsx dans une dataframe.
 #'
-#' Le fichier MEDOC_REG.xlsx possède un onglet unique dont les trois premières
-#' lignes servent d'en-têtes imbriqués (libellé des questions, modalités de
-#' réponse, type de donnée). On ignore donc ces lignes (skip = 3) afin d'obtenir
-#' une dataframe exploitable : une ligne par (Typologie, DCI, Type_donnee) et une
-#' colonne par question / modalité de réponse.
+#' Le fichier MEDOC_REG.xlsx possède un onglet unique dont les deux premières
+#' lignes constituent des en-têtes imbriqués :
+#'   - ligne 1 : grandes catégories (ex : "S0. Genre du patient :") ;
+#'   - ligne 2 : libellés complets des colonnes (ex : "périmètre", "DCI",
+#'     "Type_donnee", "Total", "Homme", "Femme", ...).
+#'
+#' On ignore donc la première ligne et on utilise la seconde comme noms de
+#' colonnes (skip = 1). Le paramètre .name_repair = "unique" garantit des noms
+#' de colonnes sans doublons (les intitulés répétés tels que "Oui", "Non", ...
+#' sont suffixés automatiquement).
+#'
+#' De cette façon, la dataframe obtenue contient une ligne par (périmètre, DCI,
+#' Type_donnee) et une colonne par question / modalité de réponse.
 #'
 #' @return Une dataframe (tibble) issue de readxl::read_excel().
 #' @export
@@ -41,7 +49,7 @@ read_medoc_reg <- function(path = medoc_reg_path()) {
   if (!file.exists(path)) {
     stop("Fichier Excel MEDOC_REG introuvable : ", path)
   }
-  readxl::read_excel(path, sheet = 1L, skip = 3L, .name_repair = "unique")
+  readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
 }
 
 # --- Lecture générique (futurs fichiers Excel) ------------------------------

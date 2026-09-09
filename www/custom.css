@@ -39,6 +39,83 @@ table.dataTable tbody tr:hover {
   background-color: #ecf0f1;
 }
 
+/* ----------------------------------------------------------------------------
+   Focus de la DCI sélectionnée (une seule ligne à la fois)
+   DT applique la classe "selected" sur la ligne cliquée (mode single).
+   On renforce visuellement ce focus pour que la ligne sélectionnée soit
+   clairement identifiable parmi les autres.
+   ---------------------------------------------------------------------------- */
+table.dataTable tbody tr.selected,
+table.dataTable tbody tr.selected:hover {
+  background-color: #d1f2eb !important;  /* vert clair assorti au thème */
+  box-shadow: inset 0 0 0 2px #18bc9c;   /* liseré vert de mise en évidence */
+}
+
+table.dataTable tbody tr.selected td {
+  color: #0e6251;
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------------
+   Organisation de l'écran en deux grandes zones distinctes :
+   - .zone-tableau (partie haute) : tableau des DCI
+   - .zone-graphiques (partie basse) : graphiques relatifs à la DCI cliquée.
+   Chaque zone est un bloc séparé, empilé verticalement (aucun chevauchement).
+   ---------------------------------------------------------------------------- */
+
+/* Zone haute : tableau des DCI */
+.zone-tableau {
+  position: relative;
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid #dfe6e9;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Zone basse : graphiques */
+.zone-graphiques {
+  padding: 20px;
+  background-color: #ffffff;
+  border: 1px solid #dfe6e9;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.zone-graphiques h4 {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.dci-title {
+  color: #18bc9c;
+  font-size: 1.05rem;
+  margin-bottom: 10px;
+}
+
+/* Chaque graphique vit dans une carte (.graph-card) à l'intérieur de la grille
+   responsive Bootstrap 5. La carte contient le graphique avec sa propre hauteur. */
+.graph-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  margin-bottom: 16px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e3e8ec;
+  border-radius: 6px;
+  overflow: hidden;          /* rogne tout débordement du graphique (plotly) */
+}
+
+.graph-card .plotly,
+.graph-card .plotly .plot-container {
+  position: relative !important;
+  width: 100% !important;
+}
+
+
 /* Alertes (connexion / données manquantes) */
 .alert {
   margin-top: 16px;
@@ -49,3 +126,4 @@ table.dataTable tbody tr:hover {
 .btn {
   border-radius: 4px;
 }
+
