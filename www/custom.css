@@ -8,6 +8,173 @@ body {
   background-color: #f5f7fa;
 }
 
+/* ----------------------------------------------------------------------------
+   Navbar : onglets type classeur (comme Excel), version soignée.
+   ---------------------------------------------------------------------------- */
+
+/* La navbar reste toujours visible en haut, même au défilement du contenu. */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  padding-top: 0.45rem;
+  padding-bottom: 0;
+  /* Fond coloré : bslib injecte après notre feuille un fond (vert primaire ou
+     clair) via la variable --bslib-navbar-light-bg. On force notre couleur de
+     marque avec !important, qui l'emporte sur toute autre règle. */
+  background-color: #eaf2ef !important;   /* vert-gris pâle */
+  --bslib-navbar-light-bg: #eaf2ef;       /* sert aussi de fond au thème bslib */
+  box-shadow: 0 1px 3px rgba(16, 42, 67, 0.08);
+}
+
+/* Rangée des onglets : fine ligne basse qui accueille les feuilles. */
+.navbar .navbar-collapse > .navbar-nav {
+  gap: 0.1rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  /* Fond légèrement coloré (vert-gris un peu plus soutenu que la navbar)
+     pour détacher la rangée d'onglets du reste de la barre. */
+  background-color: #d9eae2;
+  border-bottom: 1px solid #c3d8cd;
+  border-radius: 8px 8px 0 0;
+}
+
+/* --- Onglet de base (feuille inactive) ----------------------------------- */
+.navbar .navbar-collapse > .navbar-nav .nav-link {
+  position: relative;
+  /* Feuille inactive quasi blanche pour maximiser le contraste avec l'onglet
+     actif, qui est vert légèrement plus foncé. */
+  background: linear-gradient(to bottom, #fdfdfe 0%, #f1f4f6 100%) !important;
+  color: #4a5568 !important;
+  border: 1px solid #cfd8e0;
+  border-bottom: none;
+  border-radius: 7px 7px 0 0;
+  /* !important : bslib impose padding-right/left des onglets via la variable
+     --bs-navbar-nav-link-padding-x et la classe .nav-underline ; on force
+     notre padding pour qu'il s'applique toujours. */
+  padding: 0.7rem 1.5rem !important;
+  margin-top: 0.35rem;
+  margin-bottom: -1px;          /* la bordure basse est absorbée par la ligne */
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+/* Survol : la feuille "sort" de la rangée. */
+.navbar .navbar-collapse > .navbar-nav .nav-link:hover {
+  background: linear-gradient(to bottom, #ffffff 0%, #eaf0f4 100%) !important;
+  color: #1f2d3d !important;
+  transform: translateY(-2px);
+}
+
+/* --- Onglet actif (feuille soulevée, connectée) --------------------------- */
+.navbar .navbar-collapse > .navbar-nav .nav-link.active {
+  /* Fond vert légèrement plus foncé, nettement distinct des feuilles
+     inactives quasi blanches : on repère d'un coup d'œil l'onglet choisi. */
+  background: linear-gradient(to bottom, #d3ece1 0%, #aedbc8 100%) !important;
+  color: #0e6251 !important;
+  font-weight: 700;
+  border-color: #8fb8a9 !important;
+  border-bottom: none;
+  margin-top: 0.2rem;
+  margin-bottom: -1px;
+  transform: translateY(-2px);
+  box-shadow: 0 -3px 6px rgba(16, 42, 67, 0.10);
+}
+
+/* Peigne turquoise au-dessus de la feuille active (repère net). */
+.navbar .navbar-collapse > .navbar-nav .nav-link.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 7px 7px 0 0;
+  background: #18bc9c;
+}
+
+/* Textes de la barre : espacement du contenu */
+.navbar .navbar-collapse {
+  align-items: flex-end;
+}
+
+/* Brand vide (titre retiré) : on annule son retrait pour que les onglets
+   commencent proprement à gauche. */
+.navbar .navbar-brand:empty {
+  padding: 0;
+  margin: 0;
+}
+
+/* Sur petit écran (menu replié), on adopte une présentation simple et propre. */
+@media (max-width: 991.98px) {
+  .navbar .navbar-collapse > .navbar-nav {
+    border-bottom: none;
+    gap: 0.35rem;
+    padding: 0.5rem 0;
+  }
+  .navbar .navbar-collapse > .navbar-nav .nav-link {
+    background: #f8fafb !important;
+    border: 1px solid #cfd8e0;
+    border-radius: 6px;
+    margin: 0;
+  }
+  .navbar .navbar-collapse > .navbar-nav .nav-link.active {
+    background: #b9e2d0 !important;
+    color: #0e6251 !important;
+    transform: none;
+    box-shadow: none;
+  }
+  .navbar .navbar-collapse > .navbar-nav .nav-link.active::before {
+    display: none;
+  }
+}
+
+
+
+/* ----------------------------------------------------------------------------
+   Raccourcis de la page d'accueil (cartes cliquables vers chaque écran).
+   ---------------------------------------------------------------------------- */
+.shortcut-card {
+  height: 100%;
+  padding: 28px 24px;
+  text-align: center;
+  background-color: #ffffff;
+  border: 1px solid #dfe6e9;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.shortcut-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.shortcut-card .fa,
+.shortcut-card .bi {
+  color: #18bc9c;
+  font-size: 2.2rem;
+}
+
+.shortcut-card h4 {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+.shortcut-card p {
+  color: #5d6d7e;
+}
+
+.shortcut-card .btn {
+  margin-top: 8px;
+  width: 100%;
+}
+
 /* Bloc du message de test (validation étape 1) */
 .message-test {
   margin: 24px 0;
