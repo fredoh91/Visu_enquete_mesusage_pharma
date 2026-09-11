@@ -2,8 +2,9 @@
 # mod_medoc_reg.R — Module Shiny « Registre des médicaments »
 # Affiche un tableau des substances (DCI) issues de MEDOC_REG.xlsx, puis, au
 # clic sur une ligne, plusieurs graphiques interactifs (plotly) pour la DCI
-# sélectionnée : un camembert du genre des patients (Homme / Femme / Autre) et
-# un camembert des données "enceinte" (Oui / Non / Non renseigné).
+# sélectionnée : deux camemberts (genre des patients : Homme / Femme / Autre,
+# et données "enceinte" : Oui / Non / Non renseigné) ainsi que des séries de
+# barres horizontales (âges, origine du mésusage, type de mésusage).
 # ============================================================================
 # Conformément aux directives en vigueur, les données proviennent de fichiers
 # Excel placés dans le répertoire data/. Ce module importe le contenu de
@@ -71,6 +72,24 @@ mod_medoc_reg_ui <- function(id) {
           tags$div(
             class = "graph-card",
             plotly::plotlyOutput(ns("plot_age"), height = "420px")
+          )
+        ),
+
+        # Carte 4 : barres horizontales de l'origine du mésusage
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_origine"), height = "320px")
+          )
+        ),
+
+        # Carte 5 : barres horizontales du type de mésusage (2 niveaux hiérarchiques)
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_type"), height = "420px")
           )
         )
         # Les prochains graphiques seront ajoutés ici, chacun dans son propre
@@ -262,6 +281,131 @@ mod_medoc_reg_server <- function(id) {
         ),
         Index = c(11L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L),
         Niveau = c(1L, 2L, 2L, 2L, 1L, 2L, 2L, 2L, 2L),
+        stringsAsFactors = FALSE
+      )
+
+      eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      pct <- eff / total * 100
+      Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
+      # Indentation des barres de 2e niveau pour matérialiser le
+      # "léger décalage vers la droite" de la hiérarchie.
+      Libelle <- ifelse(
+        defs$Niveau == 1L,
+        defs$Libelle_brut,
+        paste0("    ", defs$Libelle_brut)
+      )
+
+      data.frame(
+        Libelle     = Libelle,
+        Libelle_brut = defs$Libelle_brut,
+        Niveau      = defs$Niveau,
+        Type        = Type,
+        Effectif    = eff,
+        Pct         = pct,
+        stringsAsFactors = FALSE
+      )
+    })
+
+    # --- Données des barres horizontales de l'origine du mésusage --------------
+    # Lecture depuis la ligne "effectif" de la DCI sélectionnée. Les colonnes
+    # concernées vont de U à W (index 21, 22, 23) :
+    #   - Au moment de la prise du médicament
+    #   - Au moment de la prescription médicale
+    #   - Au moment de la dispensation en pharmacie
+    # On accède par index numérique car certains libellés contiennent des
+    # espaces insécables.
+    #
+    # Le pourcentage est RECALCULÉ sur l'effectif TOTAL des données "origine",
+    # c'est-à-dire la somme des colonnes U + V + W (conformément aux directives).
+    origine_values <- reactive({
+      dci <- selected_dci()
+      req(dci)
+      data <- medoc_reg()
+      req(data)
+
+      row <- data %>%
+        dplyr::filter(.data$DCI == dci, .data$Type_donnee == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+
+      eff <- vapply(21:23, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      total <- sum(eff)
+      if (is.na(total) || total <= 0) {
+        return(NULL)
+      }
+
+      data.frame(
+        Libelle  = c(
+          "Au moment de la prise du médicament",
+          "Au moment de la prescription médicale",
+          "Au moment de la dispensation en pharmacie"
+        ),
+        Effectif = eff,
+        Pct      = eff / total * 100,
+        stringsAsFactors = FALSE
+      )
+    })
+
+    # --- Données des barres horizontales du type de mésusage -------------------
+    # Lecture depuis la ligne "effectif" de la DCI sélectionnée. Les colonnes
+    # concernées vont de AN à AX (index 40 à 50) et se répartissent sur 2
+    # niveaux hiérarchiques (comme le graphique des âges) :
+    #   Niveau 1 « Posologie, Fréquence, Durée de traitement » (colonne AN=40) :
+    #     - Schéma posologique non conforme        (AO=41)
+    #     - Arrêt prématuré et injustifié du traitement (AP=42)
+    #     - Prolongation de la durée du traitement (AQ=43)
+    #     - Voie d'administration non conforme     (AR=44)
+    #   Niveau 1 « Indication, population, contre-indications » (colonne AS=45) :
+    #     - Utilisation pour une indication hors AMM          (AT=46)
+    #     - Utilisation par une population non prévue         (AU=47)
+    #     - Utilisation en présence de contre-indications     (AV=48)
+    #     - Utilisation en présence d'une interaction interdite (AW=49)
+    #     - Autre                                             (AX=50)
+    #
+    # Comme pour le graphique des âges, le pourcentage est RECALCULÉ sur le
+    # Total (colonne D, index 4) de la ligne "effectif" de la DCI sélectionnée.
+    type_values <- reactive({
+      dci <- selected_dci()
+      req(dci)
+      data <- medoc_reg()
+      req(data)
+
+      row <- data %>%
+        dplyr::filter(.data$DCI == dci, .data$Type_donnee == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+
+      total <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total) || total <= 0) {
+        return(NULL)
+      }
+
+      # Définition hiérarchique : (libellé affiché, index colonne, niveau)
+      # Ordre d'affichage de haut en bas.
+      defs <- data.frame(
+        Libelle_brut = c(
+          "Posologie, Fréquence, Durée de traitement",  # groupe (niveau 1)
+          "Schéma posologique non conforme",
+          "Arrêt prématuré et injustifié du traitement",
+          "Prolongation de la durée du traitement",
+          "Voie d'administration non conforme à l'AMM",
+          "Indication, population, contre-indications",  # groupe (niveau 1)
+          "Utilisation pour une indication hors AMM",
+          "Utilisation par une population non prévue par l'AMM",
+          "Utilisation en présence de contre-indications connues",
+          "Utilisation en présence d'une interaction médicamenteuse contre-indiquée",
+          "Autre"
+        ),
+        Index = c(40L, 41L, 42L, 43L, 44L, 45L, 46L, 47L, 48L, 49L, 50L),
+        Niveau = c(1L, 2L, 2L, 2L, 2L, 1L, 2L, 2L, 2L, 2L, 2L),
         stringsAsFactors = FALSE
       )
 
@@ -482,6 +626,119 @@ mod_medoc_reg_server <- function(id) {
       ) %>%
         plotly::layout(
           title = paste("Répartition par âge —", dci),
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11)
+          ),
+          margin = list(l = 20, r = 20, t = 50, b = 20)
+        )
+    })
+
+    # --- Barres horizontales de l'origine du mésusage --------------------------
+    output$plot_origine <- plotly::renderPlotly({
+      dci <- selected_dci()
+      ov <- origine_values()
+      if (is.null(dci) || is.null(ov) || nrow(ov) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      # Une couleur unique pour l'origine (bordeaux "groupe" de R/colors.R).
+      col_bar <- rep(unname(age_colors()["groupe"]), nrow(ov))
+
+      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
+      txt <- paste0(ov$Effectif, " (", round(ov$Pct, 1), " %)")
+
+      # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
+      # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
+      # voulu pour que les libellés se lisent de haut en bas.
+      categoryarray <- rev(ov$Libelle)
+
+      plotly::plot_ly(
+        type = "bar",
+        orientation = "h",
+        x = ov$Pct,
+        y = ov$Libelle,
+        text = txt,
+        textposition = "auto",
+        cliponaxis = FALSE,
+        marker = list(color = col_bar),
+        customdata = ov$Effectif,
+        insidetextfont = list(color = "#ffffff"),
+        hovertemplate = paste0(
+          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
+          round(ov$Pct, 1), " %<extra></extra>"
+        ),
+        showlegend = FALSE
+      ) %>%
+        plotly::layout(
+          title = paste("Répartition par origine —", dci),
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11)
+          ),
+          margin = list(l = 20, r = 20, t = 50, b = 20)
+        )
+    })
+
+    # --- Barres horizontales du type de mésusage (2 niveaux hiérarchiques) -----
+    output$plot_type <- plotly::renderPlotly({
+      dci <- selected_dci()
+      tv <- type_values()
+      if (is.null(dci) || is.null(tv) || nrow(tv) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      # Couleurs officielles des barres de type : mêmes couleurs que le
+      # graphique des âges (niveau 1 = groupe, niveau 2 = detail), reprises
+      # depuis R/colors.R.
+      pal <- age_colors()
+      col_bar <- unname(pal[tv$Type])
+
+      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
+      txt <- paste0(tv$Effectif, " (", round(tv$Pct, 1), " %)")
+
+      # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
+      # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
+      # voulu pour que la hiérarchie se lise de haut en bas.
+      categoryarray <- rev(tv$Libelle)
+
+      plotly::plot_ly(
+        type = "bar",
+        orientation = "h",
+        x = tv$Pct,
+        y = tv$Libelle,
+        text = txt,
+        textposition = "auto",
+        cliponaxis = FALSE,
+        marker = list(color = col_bar),
+        customdata = tv$Effectif,
+        insidetextfont = list(color = "#ffffff"),
+        hovertemplate = paste0(
+          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
+          round(tv$Pct, 1), " %<extra></extra>"
+        ),
+        showlegend = FALSE
+      ) %>%
+        plotly::layout(
+          title = paste("Répartition par type —", dci),
           xaxis = list(
             title = "Pourcentage (%)",
             range = c(0, 105),
