@@ -294,3 +294,29 @@ table.dataTable tbody tr.selected td {
   border-radius: 4px;
 }
 
+/* ----------------------------------------------------------------------------
+   Variables de couleurs métier — genre du patient.
+   ----------------------------------------------------------------------------
+   Ces variables CSS constituent la référence unique en matière d'HTML/CSS pour
+   les notions « genre du patient ». Elles seront réutilisées pour tout badge,
+   cellule de tableau, fond ou légende CSS concernant le genre.
+
+   NB : les graphiques Plotly ne pouvant pas lire les variables CSS, les valeurs
+   correspondantes sont reflétées par le helper R genres_colors() dans
+   R/colors.R, qui doit rester en phase avec ce bloc (mêmes couleurs RVB).
+   ---------------------------------------------------------------------------- */
+:root {
+  /* Homme — bleu foncé */
+  --couleur-homme: rgb(0, 70, 103);
+  /* Femme — vert */
+  --couleur-femme: rgb(45, 131, 14);
+  /* Autre — orange */
+  --couleur-autre: rgb(255, 149, 43);
+  /* Niveau 1 des groupes d'âge (ex. "ST ENFANTS, ADOLESCENTS", "ST ADULTES")
+     — bordeaux soutenu (volontairement éloigné des couleurs du genre,
+     notamment du vert "Femme"). */
+  --couleur-groupe: #8b1e2d;
+  /* Niveau 2 des détails d'âge (barres de 2e niveau) — bordeaux clair assorti. */
+  --couleur-detail: #c98792;
+}
+

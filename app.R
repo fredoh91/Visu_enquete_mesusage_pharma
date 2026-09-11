@@ -50,9 +50,9 @@ ui <- page_navbar(
           tags$div(
             class = "shortcut-card",
             icon("file-medical"),
-            h4("Registre des médicaments"),
+            h4("Caractéristiques des mésusages par molécule "),
             p("Tableau des substances (DCI) et statistiques par genre des patients."),
-            actionButton("go_medoc", "Accéder au registre MEDOC_REG",
+            actionButton("go_medoc", "Accéder aux caractéristiques des mésusages par molécule",
                          class = "btn btn-primary btn-block")
           )
         )

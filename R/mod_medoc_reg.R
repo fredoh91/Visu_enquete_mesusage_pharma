@@ -53,8 +53,16 @@ mod_medoc_reg_ui <- function(id) {
             class = "graph-card",
             plotly::plotlyOutput(ns("plot_genre"), height = "320px")
           )
-        )
+        ),
 
+        # Carte 2 : barres horizontales des âges (2 niveaux hiérarchiques)
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_age"), height = "420px")
+          )
+        )
         # Les prochains graphiques seront ajoutés ici, chacun dans son propre
         # bloc "col-12 col-md-6 col-xl-4" + "graph-card".
       )
@@ -140,6 +148,77 @@ mod_medoc_reg_server <- function(id) {
       data.frame(Genre = labels[keep], Effectif = values[keep])
     })
 
+    # --- Données des barres d'âge (données S2 — âge du patient) --------------
+    # Lecture depuis la ligne "effectif" de la DCI sélectionnée. Les colonnes
+    # concernées vont de K à T (S2. Âge) ; on accède par index numérique car
+    # certains libellés contiennent des espaces insécables (ex. "nourrisson
+    # (0-23 mois)"). La colonne "ST JEUNES, ENFANTS" (qui chevauche enfants et
+    # adolescents) est volontairement ignorée.
+    #
+    # Le pourcentage est RECALCULÉ comme effectif / Total * 100, le Total étant
+    # la colonne D (index 4) de la ligne "effectif" de la DCI sélectionnée (les
+    # pourcentages du fichier ne sont pas conformes à cette base).
+    age_values <- reactive({
+      dci <- selected_dci()
+      req(dci)
+      data <- medoc_reg()
+      req(data)
+
+      row <- data %>%
+        dplyr::filter(.data$DCI == dci, .data$Type_donnee == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+
+      total <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total) || total <= 0) {
+        return(NULL)
+      }
+
+      # Définition hiérarchique : (libellé, index colonne, niveau)
+      # Ordre d'affichage de haut en bas.
+      defs <- data.frame(
+        Libelle_brut = c(
+          "ENFANTS, ADOLESCENTS",                 # groupe (niveau 1)
+          "Nouveau né ou nourrisson (0-23 mois)",
+          "Entre 2 et 11 ans (enfant)",
+          "Entre 12 et 17 ans (adolescent)",
+          "ADULTES",                              # groupe (niveau 1)
+          "Entre 18 et 34 ans",
+          "Entre 35 et 49 ans",
+          "Entre 50 et 64 ans",
+          "65 ans et plus"
+        ),
+        Index = c(11L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L),
+        Niveau = c(1L, 2L, 2L, 2L, 1L, 2L, 2L, 2L, 2L),
+        stringsAsFactors = FALSE
+      )
+
+      eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      pct <- eff / total * 100
+      Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
+      # Indentation des barres de 2e niveau pour matérialiser le
+      # "léger décalage vers la droite" de la hiérarchie.
+      Libelle <- ifelse(
+        defs$Niveau == 1L,
+        defs$Libelle_brut,
+        paste0("    ", defs$Libelle_brut)
+      )
+
+      data.frame(
+        Libelle     = Libelle,
+        Libelle_brut = defs$Libelle_brut,
+        Niveau      = defs$Niveau,
+        Type        = Type,
+        Effectif    = eff,
+        Pct         = pct,
+        stringsAsFactors = FALSE
+      )
+    })
+
     # --- Message d'état (présence du fichier / données importées) ------------
     output$etat <- renderUI({
       data <- medoc_reg()
@@ -153,7 +232,7 @@ mod_medoc_reg_server <- function(id) {
       div(class = "alert alert-success",
           icon("file-excel"),
           strong(paste(
-            "MEDOC_REG importé :",
+            "/!\\ /!\\ DEBUG /!\\ /!\\ : MEDOC_REG importé :",
             nrow(data), "lignes et", ncol(data), "colonnes."
           )))
     })
@@ -206,6 +285,11 @@ mod_medoc_reg_server <- function(id) {
         return(plotly::plotly_empty(type = "pie"))
       }
 
+      # Couleurs officielles du genre : reprises depuis le helper centralisé
+      # R/colors.R (reflet des variables CSS --couleur-* de www/custom.css).
+      # On sélectionne les couleurs selon les genres réellement présents.
+      pal <- genres_colors()[gv$Genre]
+
       plotly::plot_ly(
         data = gv,
         labels = ~Genre,
@@ -216,7 +300,7 @@ mod_medoc_reg_server <- function(id) {
         textposition = "outside",
         insidetextorientation = "horizontal",
         hovertemplate = "%{label}: %{value}<br>%{percent}<extra></extra>",
-        marker = list(colors = c("#18bc9c", "#f39c12", "#7f8c8d"))
+        marker = list(colors = pal)
       ) %>%
         plotly::layout(
           title = paste("Répartition par genre —", dci),
@@ -224,6 +308,67 @@ mod_medoc_reg_server <- function(id) {
           margin = list(l = 20, r = 20, t = 50, b = 20)
         )
     })
+
+    # --- Barres horizontales des âges (2 niveaux hiérarchiques) ---------------
+    output$plot_age <- plotly::renderPlotly({
+      dci <- selected_dci()
+      av <- age_values()
+      if (is.null(dci) || is.null(av) || nrow(av) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      # Couleurs officielles des barres d'âge : reprises depuis R/colors.R
+      # (reflet des variables CSS --couleur-groupe / --couleur-detail).
+      pal <- age_colors()
+      col_bar <- unname(pal[av$Type])
+
+      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
+      txt <- paste0(av$Effectif, " (", round(av$Pct, 1), " %)")
+
+      # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
+      # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
+      # voulu pour que la hiérarchie se lise de haut en bas.
+      categoryarray <- rev(av$Libelle)
+
+      plotly::plot_ly(
+        type = "bar",
+        orientation = "h",
+        x = av$Pct,
+        y = av$Libelle,
+        text = txt,
+        textposition = "auto",
+        cliponaxis = FALSE,
+        marker = list(color = col_bar),
+        # L'effectif est transmis séparément (customdata) pour être affiché seul
+        # dans l'infobulle, sans le pourcentage (affiché sur la ligne du dessous).
+        customdata = av$Effectif,
+        insidetextfont = list(color = "#ffffff"),
+        hovertemplate = paste0(
+          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
+          round(av$Pct, 1), " %<extra></extra>"
+        ),
+        showlegend = FALSE
+      ) %>%
+        plotly::layout(
+          title = paste("Répartition par âge —", dci),
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11)
+          ),
+          margin = list(l = 20, r = 20, t = 50, b = 20)
+        )
+    })
+
+
   })
 }
 
