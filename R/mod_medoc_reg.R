@@ -71,7 +71,7 @@ mod_medoc_reg_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_age"), height = "420px")
+            plotly::plotlyOutput(ns("plot_age"), height = "640px")
           )
         ),
 
@@ -244,9 +244,17 @@ mod_medoc_reg_server <- function(id) {
     # (0-23 mois)"). La colonne "ST JEUNES, ENFANTS" (qui chevauche enfants et
     # adolescents) est volontairement ignorée.
     #
-    # Le pourcentage est RECALCULÉ comme effectif / Total * 100, le Total étant
-    # la colonne D (index 4) de la ligne "effectif" de la DCI sélectionnée (les
-    # pourcentages du fichier ne sont pas conformes à cette base).
+    # Chaque libellé est représenté par DEUX barres, correspondant à deux modes
+    # de calcul des pourcentages :
+    #   * mode "molécule"        : pourcentage = effectif / Total molécule * 100,
+    #     où le Total (colonne D, index 4) provient de la ligne "effectif" de la
+    #     DCI sélectionnée ;
+    #   * mode "ensemble des cas" : pourcentage = effectif / Total enquête * 100,
+    #     où le Total (colonne D) provient de la ligne "effectif" de la ligne
+    #     agrégée "Total" du périmètre (l'ensemble des cas de l'enquête).
+    #
+    # Les deux barres d'un même libellé sont affichées l'une juste en dessous de
+    # l'autre, avec des couleurs différentes (voir plot_age ci-dessous).
     age_values <- reactive({
       dci <- selected_dci()
       req(dci)
@@ -260,9 +268,25 @@ mod_medoc_reg_server <- function(id) {
       }
       row <- row[1, ]
 
-      total <- suppressWarnings(as.numeric(row[[4]]))
-      if (is.na(total) || total <= 0) {
+      # Total de la molécule concernée (colonne D de la ligne "effectif" de la
+      # DCI sélectionnée).
+      total_mol <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total_mol) || total_mol <= 0) {
         return(NULL)
+      }
+
+      # Total de l'ensemble des cas (colonne D de la ligne "effectif" de la
+      # ligne agrégée "Total" du périmètre). En cas d'absence, on retombe sur
+      # le total de la molécule (les deux pourcentages seraient alors égaux).
+      row_total <- data %>%
+        dplyr::filter(.data$DCI == "Total", .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[4]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
       }
 
       # Définition hiérarchique : (libellé, index colonne, niveau)
@@ -287,25 +311,43 @@ mod_medoc_reg_server <- function(id) {
       eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
       eff[is.na(eff)] <- 0
 
-      pct <- eff / total * 100
       Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
       # Indentation des barres de 2e niveau pour matérialiser le
       # "léger décalage vers la droite" de la hiérarchie.
-      Libelle <- ifelse(
+      Libelle_base <- ifelse(
         defs$Niveau == 1L,
         defs$Libelle_brut,
         paste0("    ", defs$Libelle_brut)
       )
 
-      data.frame(
-        Libelle     = Libelle,
-        Libelle_brut = defs$Libelle_brut,
-        Niveau      = defs$Niveau,
-        Type        = Type,
-        Effectif    = eff,
-        Pct         = pct,
-        stringsAsFactors = FALSE
-      )
+      # Deux rangées par libellé, dans l'ordre d'affichage (haut → bas) :
+      # d'abord la barre "molécule", puis juste en dessous celle "ensemble des
+      # cas". Le caractère invisible (espace de largeur nulle \u200B) ajouté au
+      # libellé de la seconde barre permet à Plotly de distinguer deux
+      # catégories d'axe Y visuellement identiques.
+      out <- do.call(rbind, lapply(seq_along(Libelle_base), function(k) {
+        rbind(
+          data.frame(
+            Libelle     = Libelle_base[k],
+            Libelle_brut = Libelle_base[k],
+            Mode        = "molécule",
+            Type        = Type[k],
+            Effectif    = eff[k],
+            Pct         = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle     = paste0(Libelle_base[k], "\u200B"),
+            Libelle_brut = Libelle_base[k],
+            Mode        = "ensemble des cas",
+            Type        = Type[k],
+            Effectif    = eff[k],
+            Pct         = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
     })
 
     # --- Données des barres horizontales de l'origine du mésusage --------------
@@ -585,6 +627,15 @@ mod_medoc_reg_server <- function(id) {
     })
 
     # --- Barres horizontales des âges (2 niveaux hiérarchiques) ---------------
+    # Chaque libellé d'âge est représenté par DEUX barres superposées :
+    #   * la première (bordeaux) exprime le pourcentage « par rapport à la
+    #     molécule concernée » (dénominateur = total de la DCI sélectionnée) ;
+    #   * la seconde (orange), juste en dessous, exprime le pourcentage « par
+    #     rapport à l'ensemble des cas » (dénominateur = total de l'enquête).
+    # Le dénominateur est géré dans age_values() ; ici on ne fait qu'afficher.
+    # Les quatre combinaisons (Type : groupe/detail) × (Mode : molécule/ensemble
+    # des cas) forment quatre traces distinctes afin d'obtenir une légende
+    # lisible.
     output$plot_age <- plotly::renderPlotly({
       dci <- selected_dci()
       av <- age_values()
@@ -592,40 +643,76 @@ mod_medoc_reg_server <- function(id) {
         return(plotly::plotly_empty())
       }
 
-      # Couleurs officielles des barres d'âge : reprises depuis R/colors.R
-      # (reflet des variables CSS --couleur-groupe / --couleur-detail).
-      pal <- age_colors()
-      col_bar <- unname(pal[av$Type])
+      # Couleurs officielles : bordeaux pour le mode "molécule", orange pour le
+      # mode "ensemble des cas" (helpers de R/colors.R).
+      pal_mol <- age_colors()          # c(groupe, detail) — bordeaux
+      pal_ens <- age_colors_ensemble() # c(groupe, detail) — orange
 
-      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
-      txt <- paste0(av$Effectif, " (", round(av$Pct, 1), " %)")
+      # Couleur attribuée à chaque barre selon (Type, Mode).
+      col_vec <- ifelse(
+        av$Mode == "molécule",
+        ifelse(av$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(av$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      av$Col <- col_vec
 
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que la hiérarchie se lise de haut en bas.
       categoryarray <- rev(av$Libelle)
 
-      plotly::plot_ly(
-        type = "bar",
-        orientation = "h",
-        x = av$Pct,
-        y = av$Libelle,
-        text = txt,
-        textposition = "auto",
-        cliponaxis = FALSE,
-        marker = list(color = col_bar),
-        # L'effectif est transmis séparément (customdata) pour être affiché seul
-        # dans l'infobulle, sans le pourcentage (affiché sur la ligne du dessous).
-        customdata = av$Effectif,
-        insidetextfont = list(color = "#ffffff"),
-        hovertemplate = paste0(
-          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
-          round(av$Pct, 1), " %<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) %>%
+      # Libellé d'axe Y UNIQUE par paire de barres : pour chaque âge, la barre
+      # « molécule » (rangée du haut) porte le libellé, tandis que la barre
+      # « ensemble des cas » (juste en dessous) n'en affiche pas, afin d'éviter
+      # la redondance. tickmode="array" / ticktext permettent de choisir le
+      # texte affiché sur chaque rangée d'axe Y.
+      av$TickLabel <- av$Libelle
+      av$TickLabel[av$Mode == "ensemble des cas"] <- ""
+
+      # Les quatre combinaisons (Type × Mode), servies comme quatre traces
+      # pour alimenter la légende.
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- av[av$Mode == g$Mode & av$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            # L'effectif est transmis séparément (customdata) pour être affiché
+            # seul dans l'infobulle, sans le pourcentage.
+            customdata = sub$Effectif,
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              sub$Libelle_brut, "<br>Effectif : %{customdata}<br>Pourcentage : ",
+              round(sub$Pct, 1), " %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
         plotly::layout(
           title = paste("Répartition par âge —", dci),
+          # Chaque catégorie d'axe Y n'appartient qu'à une seule trace, donc
+          # "overlay" (pas de regroupement ni d'empilement intempestif).
+          barmode = "overlay",
           xaxis = list(
             title = "Pourcentage (%)",
             range = c(0, 105),
@@ -637,9 +724,21 @@ mod_medoc_reg_server <- function(id) {
             categoryarray = categoryarray,
             type = "category",
             automargin = TRUE,
-            tickfont = list(size = 11)
+            tickfont = list(size = 11),
+            # Affichage du libellé une seule fois par paire de barres : le texte
+            # de chaque rangée d'axe Y est contrôlé ici (vide sur les rangées
+            # « ensemble des cas »).
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(av$TickLabel)
           ),
-          margin = list(l = 20, r = 20, t = 50, b = 20)
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
         )
     })
 

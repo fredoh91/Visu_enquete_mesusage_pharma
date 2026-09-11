@@ -52,6 +52,30 @@ age_colors <- function() {
   )
 }
 
+#' Couleurs officielles des barres d'âge « ensemble des cas » (2 niveaux).
+#'
+#' Renvoie un vecteur nommé de deux couleurs hexadécimales utilisées pour la
+#' seconde barre de la série horizontale des âges, celle exprimée « par rapport
+#' à l'ensemble des cas » (le dénominateur est alors l'effectif total de
+#' l'enquête, et non celui de la molécule sélectionnée) :
+#'   * `groupe` : barres de niveau 1 (ex. "ENFANTS, ADOLESCENTS", "ADULTES") ;
+#'   * `detail` : barres de niveau 2 (tranches d'âge détaillées).
+#'
+#' Il s'agit de nuances d'orange, volontairement distinctes des bordeaux du
+#' mode « molécule » (age_colors()) afin de bien différencier les deux modes
+#' de calcul des pourcentages.
+#' Ces valeurs correspondent aux variables CSS `--couleur-groupe-ensemble` et
+#' `--couleur-detail-ensemble` de `custom.css`.
+#'
+#' @return Un vecteur nommé : c(groupe = ..., detail = ...).
+#' @export
+age_colors_ensemble <- function() {
+  c(
+    groupe = "#e2800f",   # var(--couleur-groupe-ensemble) — orange soutenu
+    detail = "#e4b279"    # var(--couleur-detail-ensemble) — orange clair
+  )
+}
+
 #' Couleurs officielles de la répartition « enceinte » (Oui / Non / Non renseigné).
 #'
 #' Renvoie un vecteur nommé de trois nuances de vert, déclinées à partir du vert

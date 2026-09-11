@@ -318,6 +318,11 @@ table.dataTable tbody tr.selected td {
   --couleur-groupe: #8b1e2d;
   /* Niveau 2 des détails d'âge (barres de 2e niveau) — bordeaux clair assorti. */
   --couleur-detail: #c98792;
+  /* Seconde barre d'âge « ensemble des cas » (pourcentages sur l'effectif total
+     de l'enquête) — nuances d'orange, distinctes des bordeaux du mode
+     « molécule », afin de différencier les deux modes de calcul. */
+  --couleur-groupe-ensemble: #e2800f;  /* orange soutenu */
+  --couleur-detail-ensemble:  #e4b279; /* orange clair */
   /* Répartition "enceinte" (sous-détail du secteur Femme) — nuances de vert
      déclinées à partir du vert "Femme" (--couleur-femme). */
   --couleur-enceinte-oui: #2d830e;   /* vert femme (référence) */
