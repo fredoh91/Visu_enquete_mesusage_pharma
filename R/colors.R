@@ -51,3 +51,22 @@ age_colors <- function() {
     detail = "#c98792"    # var(--couleur-detail) — bordeaux clair
   )
 }
+
+#' Couleurs officielles de la répartition « enceinte » (Oui / Non / Non renseigné).
+#'
+#' Renvoie un vecteur nommé de trois nuances de vert, déclinées à partir du vert
+#' "Femme" (--couleur-femme). Elles colorent les sous-segments "enceinte" qui
+#' découpent le secteur Femme du camembert (sunburst).
+#'
+#' Ces valeurs correspondent aux variables CSS `--couleur-enceinte-*` de
+#' `custom.css`.
+#'
+#' @return Un vecteur nommé : c(Oui = ..., Non = ..., `Non renseigné` = ...).
+#' @export
+enceinte_colors <- function() {
+  c(
+    Oui            = "#2d830e",   # var(--couleur-enceinte-oui) — vert femme
+    Non            = "#1b5e09",   # var(--couleur-enceinte-non) — vert foncé
+    `Non renseigné` = "#6fae48"   # var(--couleur-enceinte-nr)  — vert clair
+  )
+}

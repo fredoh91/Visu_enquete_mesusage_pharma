@@ -318,5 +318,10 @@ table.dataTable tbody tr.selected td {
   --couleur-groupe: #8b1e2d;
   /* Niveau 2 des détails d'âge (barres de 2e niveau) — bordeaux clair assorti. */
   --couleur-detail: #c98792;
+  /* Répartition "enceinte" (sous-détail du secteur Femme) — nuances de vert
+     déclinées à partir du vert "Femme" (--couleur-femme). */
+  --couleur-enceinte-oui: #2d830e;   /* vert femme (référence) */
+  --couleur-enceinte-non: #1b5e09;   /* vert foncé */
+  --couleur-enceinte-nr:  #6fae48;   /* vert clair */
 }
 

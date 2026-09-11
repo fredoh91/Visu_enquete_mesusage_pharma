@@ -1,8 +1,9 @@
 # ============================================================================
 # mod_medoc_reg.R — Module Shiny « Registre des médicaments »
 # Affiche un tableau des substances (DCI) issues de MEDOC_REG.xlsx, puis, au
-# clic sur une ligne, un camembert interactif (plotly) du genre des patients
-# (Homme / Femme / Autre) pour la DCI sélectionnée.
+# clic sur une ligne, plusieurs graphiques interactifs (plotly) pour la DCI
+# sélectionnée : un camembert du genre des patients (Homme / Femme / Autre) et
+# un camembert des données "enceinte" (Oui / Non / Non renseigné).
 # ============================================================================
 # Conformément aux directives en vigueur, les données proviennent de fichiers
 # Excel placés dans le répertoire data/. Ce module importe le contenu de
@@ -46,7 +47,7 @@ mod_medoc_reg_ui <- function(id) {
       uiOutput(ns("plot_msg")),
 
       fluidRow(
-        # Carte 1 : camembert du genre des patients
+        # Carte 1 : camembert du genre des patients (Homme / Femme / Autre)
         tags$div(
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
@@ -55,7 +56,16 @@ mod_medoc_reg_ui <- function(id) {
           )
         ),
 
-        # Carte 2 : barres horizontales des âges (2 niveaux hiérarchiques)
+        # Carte 2 : camembert des données "enceinte" (Oui / Non / Non renseigné)
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_enceinte"), height = "320px")
+          )
+        ),
+
+        # Carte 3 : barres horizontales des âges (2 niveaux hiérarchiques)
         tags$div(
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
@@ -130,22 +140,82 @@ mod_medoc_reg_server <- function(id) {
       row[1, ]
     })
 
-    # --- Données du camembert (genre des patients) --------------------------
+    # --- Données du camembert du genre des patients ----------------------------
+    # Construit la dataframe nécessaire au camembert 1 : uniquement la
+    # répartition du genre (Homme / Femme / Autre). Les colonnes sont lues par
+    # index (robustesse face aux libellés avec espaces insécables) : genre =
+    # 5 (Homme), 6 (Femme), 7 (Autre). Les éventuelles NA sont traitées comme
+    # 0 et les segments d'effectif nul sont écartés.
+    #
+    # Le pourcentage est recalculé sur le total Homme + Femme + Autre.
     genre_values <- reactive({
       row <- selected_genre()
       req(row)
 
-      # Les colonnes du genre sont lues comme caractères (avec d'éventuelles
-      # valeurs NA). On les convertit en nombres : NA et 0 sont écartés afin de
-      # ne pas afficher de segments vides dans le camembert.
-      labels <- c("Homme", "Femme", "Autre")
-      raw <- c(as.character(row$Homme), as.character(row$Femme),
-               as.character(row$`Autre...7`))
-      values <- suppressWarnings(as.numeric(raw))
-      values[is.na(values)] <- 0
+      h <- suppressWarnings(as.numeric(row[[5]]))
+      f <- suppressWarnings(as.numeric(row[[6]]))
+      a <- suppressWarnings(as.numeric(row[[7]]))
+      v <- c(h, f, a)
+      v[is.na(v)] <- 0
+      h <- v[1]; f <- v[2]; a <- v[3]
 
-      keep <- values > 0
-      data.frame(Genre = labels[keep], Effectif = values[keep])
+      total <- h + f + a
+      if (is.na(total) || total <= 0) {
+        return(NULL)
+      }
+
+      df <- data.frame(
+        Label  = c("Homme", "Femme", "Autre"),
+        Effectif = c(h, f, a),
+        stringsAsFactors = FALSE
+      )
+      # Pourcentage sur le total (Homme + Femme + Autre), formaté avec la
+      # virgule décimale française.
+      df$Pct <- df$Effectif / total * 100
+      df$Pct_fr <- formatC(df$Pct, format = "f", digits = 1,
+                           big.mark = " ", decimal.mark = ",")
+
+      # On écarte les segments d'effectif nul (pas de secteur vide).
+      df[df$Effectif > 0, ]
+    })
+
+    # --- Données du camembert des données "enceinte" ---------------------------
+    # Construit la dataframe nécessaire au camembert 2 : uniquement la
+    # répartition "enceinte" (Oui / Non / Non renseigné), en nuances de vert.
+    # Les colonnes sont lues par index : enceinte = 8 (Non), 9 (Oui),
+    # 10 (Non renseigné).
+    #
+    # Le pourcentage est recalculé sur le TOTAL des données "enceinte"
+    # (Non + Oui + Non renseigné), conformément aux directives.
+    enceinte_values <- reactive({
+      row <- selected_genre()
+      req(row)
+
+      non <- suppressWarnings(as.numeric(row[[8]]))
+      oui <- suppressWarnings(as.numeric(row[[9]]))
+      nr  <- suppressWarnings(as.numeric(row[[10]]))
+      v <- c(non, oui, nr)
+      v[is.na(v)] <- 0
+      non <- v[1]; oui <- v[2]; nr <- v[3]
+
+      total <- non + oui + nr
+      if (is.na(total) || total <= 0) {
+        return(NULL)
+      }
+
+      df <- data.frame(
+        Label  = c("Non", "Oui", "Non renseigné"),
+        Effectif = c(non, oui, nr),
+        stringsAsFactors = FALSE
+      )
+      # Pourcentage sur le total "enceinte" (Non + Oui + Non renseigné), formaté
+      # avec la virgule décimale française.
+      df$Pct <- df$Effectif / total * 100
+      df$Pct_fr <- formatC(df$Pct, format = "f", digits = 1,
+                           big.mark = " ", decimal.mark = ",")
+
+      # On écarte les segments d'effectif nul (pas de secteur vide).
+      df[df$Effectif > 0, ]
     })
 
     # --- Données des barres d'âge (données S2 — âge du patient) --------------
@@ -272,39 +342,100 @@ mod_medoc_reg_server <- function(id) {
       tags$p(
         class = "dci-title",
         icon("file-medical"),
-        strong(paste("Genre des patients —", dci))
+        strong(paste("Caractéristiques de la DCI —", dci))
       )
     })
 
-    # --- Camembert du genre des patients (partie basse) ----------------------
+    # --- Camembert 1 : genre des patients (partie basse) ----------------------
+    # Camembert simple : répartition Homme / Femme / Autre. Chaque secteur
+    # affiche l'effectif et le pourcentage (entre parenthèses). L'infobulle
+    # mentionne le libellé de la donnée, l'effectif et le pourcentage.
     output$plot_genre <- plotly::renderPlotly({
       dci <- selected_dci()
       gv <- genre_values()
       if (is.null(dci) || is.null(gv) || nrow(gv) == 0) {
         # Pas encore de camembert : on renvoie un graphique quasi vide.
-        return(plotly::plotly_empty(type = "pie"))
+        return(plotly::plotly_empty())
       }
 
-      # Couleurs officielles du genre : reprises depuis le helper centralisé
-      # R/colors.R (reflet des variables CSS --couleur-* de www/custom.css).
-      # On sélectionne les couleurs selon les genres réellement présents.
-      pal <- genres_colors()[gv$Genre]
+      # Couleurs officielles du genre : reprises depuis R/colors.R (reflets des
+      # variables CSS de custom.css), mappées sur les libellés (labels).
+      pal_genre <- genres_colors()
+      col_segments <- unname(pal_genre[gv$Label])
+
+      # Étiquette sur chaque secteur : "Libellé\nEffectif (Pourcentage)"
+      txt <- paste0(gv$Label, "<br>", gv$Effectif, " (", gv$Pct_fr, "%)")
 
       plotly::plot_ly(
-        data = gv,
-        labels = ~Genre,
-        values = ~Effectif,
+        labels = gv$Label,
+        values = gv$Effectif,
         type = "pie",
-        hole = 0.4,
-        textinfo = "label+percent",
-        textposition = "outside",
+        # Pourcentage (sur Homme + Femme + Autre), transmis pour l'infobulle,
+        # déjà formaté en français (virgule décimale).
+        customdata = gv$Pct_fr,
+        text = txt,
+        textinfo = "text",
+        textposition = "inside",
         insidetextorientation = "horizontal",
-        hovertemplate = "%{label}: %{value}<br>%{percent}<extra></extra>",
-        marker = list(colors = pal)
+        marker = list(
+          colors = col_segments,
+          line = list(color = "#ffffff", width = 1)
+        ),
+        hovertemplate = paste0(
+          "%{label}<br>Effectif : %{value}<br>Pourcentage : %{customdata} %<extra></extra>"
+        ),
+        showlegend = FALSE
       ) %>%
         plotly::layout(
           title = paste("Répartition par genre —", dci),
-          showlegend = TRUE,
+          margin = list(l = 20, r = 20, t = 50, b = 20)
+        )
+    })
+
+    # --- Camembert 2 : données "enceinte" (partie basse) ----------------------
+    # Camembert simple : répartition Oui / Non / Non renseigné en nuances de
+    # vert. Le pourcentage est recalculé sur l'effectif TOTAL des données
+    # "enceinte" (Non + Oui + Non renseigné), conformément aux directives.
+    # Chaque secteur affiche l'effectif et le pourcentage (entre parenthèses).
+    output$plot_enceinte <- plotly::renderPlotly({
+      dci <- selected_dci()
+      ev <- enceinte_values()
+      if (is.null(dci) || is.null(ev) || nrow(ev) == 0) {
+        # Pas encore de camembert : on renvoie un graphique quasi vide.
+        return(plotly::plotly_empty())
+      }
+
+      # Nuances de vert (Oui / Non / Non renseigné) : reprises depuis R/colors.R
+      # (helper enceinte_colors(), reflets des variables CSS de custom.css),
+      # mappées sur les libellés (labels).
+      pal_enceinte <- enceinte_colors()
+      col_segments <- unname(pal_enceinte[ev$Label])
+
+      # Étiquette sur chaque secteur : "Libellé\nEffectif (Pourcentage)"
+      txt <- paste0(ev$Label, "<br>", ev$Effectif, " (", ev$Pct_fr, "%)")
+
+      plotly::plot_ly(
+        labels = ev$Label,
+        values = ev$Effectif,
+        type = "pie",
+        # Pourcentage (sur Non + Oui + Non renseigné), transmis pour
+        # l'infobulle, déjà formaté en français (virgule décimale).
+        customdata = ev$Pct_fr,
+        text = txt,
+        textinfo = "text",
+        textposition = "inside",
+        insidetextorientation = "horizontal",
+        marker = list(
+          colors = col_segments,
+          line = list(color = "#ffffff", width = 1)
+        ),
+        hovertemplate = paste0(
+          "%{label}<br>Effectif : %{value}<br>Pourcentage : %{customdata} %<extra></extra>"
+        ),
+        showlegend = FALSE
+      ) %>%
+        plotly::layout(
+          title = paste("Répartition \"enceinte\" —", dci),
           margin = list(l = 20, r = 20, t = 50, b = 20)
         )
     })
