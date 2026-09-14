@@ -289,15 +289,18 @@ mod_medoc_reg_server <- function(id) {
         total_ens <- total_mol
       }
 
-      # Définition hiérarchique : (libellé, index colonne, niveau)
+      # Définition hiérarchique : (libellé affiché, index colonne, niveau)
       # Ordre d'affichage de haut en bas.
+      # Les libellés de niveau 1 (groupes) sont affichés "Total ENFANTS et
+      # ADOLESCENTS" / "Total ADULTES", en gras ; ceux de niveau 2 (tranches
+      # d'âge) ne sont pas en gras.
       defs <- data.frame(
         Libelle_brut = c(
-          "ENFANTS, ADOLESCENTS",                 # groupe (niveau 1)
+          "Total ENFANTS et ADOLESCENTS",         # groupe (niveau 1)
           "Nouveau né ou nourrisson (0-23 mois)",
           "Entre 2 et 11 ans (enfant)",
           "Entre 12 et 17 ans (adolescent)",
-          "ADULTES",                              # groupe (niveau 1)
+          "Total ADULTES",                        # groupe (niveau 1)
           "Entre 18 et 34 ans",
           "Entre 35 et 49 ans",
           "Entre 50 et 64 ans",
@@ -312,11 +315,15 @@ mod_medoc_reg_server <- function(id) {
       eff[is.na(eff)] <- 0
 
       Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
-      # Indentation des barres de 2e niveau pour matérialiser le
-      # "léger décalage vers la droite" de la hiérarchie.
-      Libelle_base <- ifelse(
+      # Libellé AFFICHÉ sur l'axe Y :
+      #   * niveau 1 (groupes) : libellé entouré de <b>...</b> (gras, reconnu par
+      #     plotly.js) sans indentation ;
+      #   * niveau 2 (détails) : indentation de 4 espaces pour matérialiser le
+      #     "léger décalage vers la droite" de la hiérarchie, sans gras (pas de
+      #     balise HTML afin de conserver le rendu des espaces).
+      Libelle_aff <- ifelse(
         defs$Niveau == 1L,
-        defs$Libelle_brut,
+        paste0("<b>", defs$Libelle_brut, "</b>"),
         paste0("    ", defs$Libelle_brut)
       )
 
@@ -325,24 +332,26 @@ mod_medoc_reg_server <- function(id) {
       # cas". Le caractère invisible (espace de largeur nulle \u200B) ajouté au
       # libellé de la seconde barre permet à Plotly de distinguer deux
       # catégories d'axe Y visuellement identiques.
-      out <- do.call(rbind, lapply(seq_along(Libelle_base), function(k) {
+      # Libelle_brut reste le libellé "propre" (sans gras ni indentation), utilisé
+      # pour l'infobulle.
+      out <- do.call(rbind, lapply(seq_along(Libelle_aff), function(k) {
         rbind(
           data.frame(
-            Libelle     = Libelle_base[k],
-            Libelle_brut = Libelle_base[k],
-            Mode        = "molécule",
-            Type        = Type[k],
-            Effectif    = eff[k],
-            Pct         = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            Libelle      = Libelle_aff[k],
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
             stringsAsFactors = FALSE
           ),
           data.frame(
-            Libelle     = paste0(Libelle_base[k], "\u200B"),
-            Libelle_brut = Libelle_base[k],
-            Mode        = "ensemble des cas",
-            Type        = Type[k],
-            Effectif    = eff[k],
-            Pct         = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            Libelle      = paste0(Libelle_aff[k], "\u200B"),
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
             stringsAsFactors = FALSE
           )
         )
@@ -432,18 +441,24 @@ mod_medoc_reg_server <- function(id) {
 
       # Définition hiérarchique : (libellé affiché, index colonne, niveau)
       # Ordre d'affichage de haut en bas.
+      # Conformément aux directives, les libellés affichés sont ceux précisés
+      # entre parenthèses "(Afficher : ...)" : les groupes de niveau 1 sont
+      # affichés "Total Posologie, Fréquence, durée" / "Total Indication,
+      # population, CI" (en gras), les libellés de niveau 2 ne sont pas en gras
+      # (l'arrêt prématuré et injustifié du traitement est volontairement sans
+      # libellé affiché).
       defs <- data.frame(
         Libelle_brut = c(
-          "Posologie, Fréquence, Durée de traitement",  # groupe (niveau 1)
+          "Total Posologie, Fréquence, durée",        # groupe (niveau 1)
           "Schéma posologique non conforme",
-          "Arrêt prématuré et injustifié du traitement",
-          "Prolongation de la durée du traitement",
-          "Voie d'administration non conforme à l'AMM",
-          "Indication, population, contre-indications",  # groupe (niveau 1)
-          "Utilisation pour une indication hors AMM",
-          "Utilisation par une population non prévue par l'AMM",
-          "Utilisation en présence de contre-indications connues",
-          "Utilisation en présence d'une interaction médicamenteuse contre-indiquée",
+          "",                                          # arrêt prématuré (sans libellé)
+          "Prolongation durée TT",
+          "Voie d'administration non conforme",
+          "Total Indication, population, CI",         # groupe (niveau 1)
+          "Indication hors AMM",
+          "Population non prévue",
+          "Contre-indications",
+          "Interaction médicamenteuse",
           "Autre"
         ),
         Index = c(40L, 41L, 42L, 43L, 44L, 45L, 46L, 47L, 48L, 49L, 50L),
@@ -456,21 +471,25 @@ mod_medoc_reg_server <- function(id) {
 
       pct <- eff / total * 100
       Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
-      # Indentation des barres de 2e niveau pour matérialiser le
-      # "léger décalage vers la droite" de la hiérarchie.
-      Libelle <- ifelse(
+      # Libellé AFFICHÉ sur l'axe Y :
+      #   * niveau 1 (groupes) : libellé entouré de <b>...</b> (gras, reconnu par
+      #     plotly.js) sans indentation ;
+      #   * niveau 2 (détails) : indentation de 4 espaces pour matérialiser le
+      #     "léger décalage vers la droite" de la hiérarchie, sans gras (pas de
+      #     balise HTML afin de conserver le rendu des espaces).
+      Libelle_aff <- ifelse(
         defs$Niveau == 1L,
-        defs$Libelle_brut,
+        paste0("<b>", defs$Libelle_brut, "</b>"),
         paste0("    ", defs$Libelle_brut)
       )
 
       data.frame(
-        Libelle     = Libelle,
+        Libelle      = Libelle_aff,
         Libelle_brut = defs$Libelle_brut,
-        Niveau      = defs$Niveau,
-        Type        = Type,
-        Effectif    = eff,
-        Pct         = pct,
+        Niveau       = defs$Niveau,
+        Type         = Type,
+        Effectif     = eff,
+        Pct          = pct,
         stringsAsFactors = FALSE
       )
     })
@@ -694,13 +713,20 @@ mod_medoc_reg_server <- function(id) {
             textposition = "auto",
             cliponaxis = FALSE,
             marker = list(color = sub$Col),
-            # L'effectif est transmis séparément (customdata) pour être affiché
-            # seul dans l'infobulle, sans le pourcentage.
-            customdata = sub$Effectif,
+            # Le customdata transporte, pour CHAQUE barre, trois informations :
+            # (libellé propre sans gras, effectif, pourcentage arrondi) afin que
+            # l'infobulle affiche les bonnes valeurs de la barre survolée, sans
+            # réafficher la balise HTML <b> présente dans l'axe Y (Libelle).
+            # NB : on passe une LISTE de vecteurs (une par point) — c'est la forme
+            # que plotly.js attend pour un customdata à plusieurs champs ; un
+            # data.frame provoquerait une erreur de rendu javascript.
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
             insidetextfont = list(color = "#ffffff"),
             hovertemplate = paste0(
-              sub$Libelle_brut, "<br>Effectif : %{customdata}<br>Pourcentage : ",
-              round(sub$Pct, 1), " %<extra></extra>"
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
             ),
             name = g$Nom,
             showlegend = TRUE
@@ -828,11 +854,20 @@ mod_medoc_reg_server <- function(id) {
         textposition = "auto",
         cliponaxis = FALSE,
         marker = list(color = col_bar),
-        customdata = tv$Effectif,
+        # Le customdata transporte, pour CHAQUE barre, trois informations :
+        # (libellé propre sans gras, effectif, pourcentage arrondi) afin que
+        # l'infobulle affiche les bonnes valeurs de la barre survolée, sans
+        # réafficher la balise HTML <b> présente dans l'axe Y (Libelle).
+        # NB : on passe une LISTE de vecteurs (une par point) — c'est la forme
+        # que plotly.js attend pour un customdata à plusieurs champs ; un
+        # data.frame provoquerait une erreur de rendu javascript.
+        customdata = lapply(seq_len(nrow(tv)), function(i) {
+          c(tv$Libelle_brut[i], tv$Effectif[i], round(tv$Pct[i], 1))
+        }),
         insidetextfont = list(color = "#ffffff"),
         hovertemplate = paste0(
-          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
-          round(tv$Pct, 1), " %<extra></extra>"
+          "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+          "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
         ),
         showlegend = FALSE
       ) %>%
