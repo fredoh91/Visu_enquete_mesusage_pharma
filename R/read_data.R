@@ -52,6 +52,36 @@ read_medoc_reg <- function(path = medoc_reg_path()) {
   readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
 }
 
+#' Chemin complet vers le fichier Excel LIB_CODE_ATC_OXOMEMAZINE.
+#' @return Chemin absolu vers data/LIB_CODE_ATC_OXOMEMAZINE.xlsx.
+lib_code_atc_path <- function() {
+  file.path(data_dir(), "LIB_CODE_ATC_OXOMEMAZINE.xlsx")
+}
+
+# --- Lecture LIB_CODE_ATC_OXOMEMAZINE ---------------------------------------
+#' Importe le fichier data/LIB_CODE_ATC_OXOMEMAZINE.xlsx dans une dataframe.
+#'
+#' Comme pour MEDOC_REG.xlsx, ce fichier possède un onglet unique dont les deux
+#' premières lignes constituent des en-têtes imbriqués : on ignore donc la
+#' première ligne et on utilise la seconde comme noms de colonnes (skip = 1).
+#' La structure est analogue à celle de MEDOC_REG, à la différence près que la
+#' colonne B contient le code ATC et la colonne C le libellé ATC : un libellé
+#' supplémentaire (« Lib ATC ») est donc inséré entre le code et le type de
+#' donnée, ce qui décale d'un cran toutes les colonnes de données par rapport
+#' au fichier MEDOC_REG.
+#'
+#' La dataframe obtenue contient une ligne par (périmètre, Code ATC, Type_donnee)
+#' et une colonne par question / modalité de réponse.
+#'
+#' @return Une dataframe (tibble) issue de readxl::read_excel().
+#' @export
+read_lib_code_atc <- function(path = lib_code_atc_path()) {
+  if (!file.exists(path)) {
+    stop("Fichier Excel LIB_CODE_ATC_OXOMEMAZINE introuvable : ", path)
+  }
+  readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
+}
+
 # --- Lecture générique (futurs fichiers Excel) ------------------------------
 #' Importe tous les fichiers Excel du répertoire data/ dans une liste de dataframes.
 #'

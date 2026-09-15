@@ -55,6 +55,17 @@ ui <- page_navbar(
             actionButton("go_medoc", "Accéder aux caractéristiques des mésusages par molécule",
                          class = "btn btn-primary btn-block")
           )
+        ),
+        column(
+          width = 6,
+          tags$div(
+            class = "shortcut-card",
+            icon("table-list"),
+            h4("Caractéristiques des mésusages par code ATC "),
+            p("Tableau des libellés ATC et codes ATC, et statistiques par genre des patients."),
+            actionButton("go_lib_code_atc", "Accéder aux caractéristiques des mésusages par code ATC",
+                         class = "btn btn-primary btn-block")
+          )
         )
       )
     )
@@ -64,6 +75,12 @@ ui <- page_navbar(
     "MEDOC_REG",
     value = "medoc",
     mod_medoc_reg_ui("medoc")
+  ),
+
+  nav_panel(
+    "LIB_CODE_ATC",
+    value = "lib_code_atc",
+    mod_lib_code_atc_ui("lib_code_atc")
   )
 )
 
@@ -74,8 +91,16 @@ server <- function(input, output, session) {
     bslib::nav_select("main_navbar", selected = "medoc")
   })
 
+  # Raccourci de la page d'accueil : ouvre l'écran LIB_CODE_ATC.
+  observeEvent(input$go_lib_code_atc, {
+    bslib::nav_select("main_navbar", selected = "lib_code_atc")
+  })
+
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
   mod_medoc_reg_server("medoc")
+
+  # Le module LIB_CODE_ATC charge les données depuis data/LIB_CODE_ATC_OXOMEMAZINE.xlsx.
+  mod_lib_code_atc_server("lib_code_atc")
 }
 
 shiny::shinyApp(ui = ui, server = server)
