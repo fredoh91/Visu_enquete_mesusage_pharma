@@ -53,7 +53,7 @@ mod_medoc_reg_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_genre"), height = "320px")
+            plotly::plotlyOutput(ns("plot_genre"), height = "640px")
           )
         ),
 
@@ -62,7 +62,7 @@ mod_medoc_reg_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_enceinte"), height = "320px")
+            plotly::plotlyOutput(ns("plot_enceinte"), height = "640px")
           )
         ),
 
@@ -80,7 +80,7 @@ mod_medoc_reg_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_origine"), height = "320px")
+            plotly::plotlyOutput(ns("plot_origine"), height = "640px")
           )
         ),
 
@@ -89,7 +89,19 @@ mod_medoc_reg_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_type"), height = "420px")
+            plotly::plotlyOutput(ns("plot_type"), height = "640px")
+          )
+        ),
+
+        # Carte 6 : barres horizontales des facteurs de mésusage.
+        # Ce graphique exploite un fichier Excel distinct (principaux_facteurs.xlsx),
+        # chargé en parallèle de MEDOC_REG.xlsx (voir read_principaux_facteurs()).
+        # Le nombre important de facteurs (29) justifie une carte plus haute (820px).
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_facteur"), height = "820px")
           )
         )
         # Les prochains graphiques seront ajoutés ici, chacun dans son propre
@@ -113,6 +125,19 @@ mod_medoc_reg_server <- function(id) {
     medoc_reg <- reactive({
       tryCatch(
         read_medoc_reg(),
+        error = function(e) NULL
+      )
+    })
+
+    # --- Données brutes des facteurs (principaux_facteurs.xlsx) -------------
+    # Ce second fichier est chargé au même moment que MEDOC_REG.xlsx. Il alimente
+    # le 6e graphique de l'onglet (barres horizontales des facteurs de mésusage).
+    # Structure particulière : chaque ligne = un facteur, chaque DCI = une colonne
+    # (EE..EQ). La dataframe est lue brute (col_names = FALSE), on accède aux
+    # colonnes par indice (voir read_principaux_facteurs()).
+    principaux_facteurs <- reactive({
+      tryCatch(
+        read_principaux_facteurs(),
         error = function(e) NULL
       )
     })
@@ -368,8 +393,14 @@ mod_medoc_reg_server <- function(id) {
     # On accède par index numérique car certains libellés contiennent des
     # espaces insécables.
     #
-    # Le pourcentage est RECALCULÉ sur l'effectif TOTAL des données "origine",
-    # c'est-à-dire la somme des colonnes U + V + W (conformément aux directives).
+    # Comme pour le graphique des âges et du type, DEUX modes de calcul des
+    # pourcentages sont produits pour chaque libellé :
+    #   * mode "molécule"         : dénominateur = effectif total de la molécule
+    #     (colonne D, index 4, de la ligne "effectif" de la DCI sélectionnée) ;
+    #   * mode "ensemble des cas" : dénominateur = effectif total de l'ensemble
+    #     de l'enquête (colonne D de la ligne agrégée "Total").
+    # Cela génère donc 2 rangées par modalité d'origine (toutes de niveau
+    # "detail", sans hiérarchie), dans le même format que age_values().
     origine_values <- reactive({
       dci <- selected_dci()
       req(dci)
@@ -383,24 +414,60 @@ mod_medoc_reg_server <- function(id) {
       }
       row <- row[1, ]
 
-      eff <- vapply(21:23, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
-      eff[is.na(eff)] <- 0
-
-      total <- sum(eff)
-      if (is.na(total) || total <= 0) {
+      # Total de la molécule concernée (colonne D).
+      total_mol <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total_mol) || total_mol <= 0) {
         return(NULL)
       }
 
-      data.frame(
-        Libelle  = c(
-          "Au moment de la prise du médicament",
-          "Au moment de la prescription médicale",
-          "Au moment de la dispensation en pharmacie"
-        ),
-        Effectif = eff,
-        Pct      = eff / total * 100,
-        stringsAsFactors = FALSE
+      # Total de l'ensemble des cas (colonne D de la ligne "Total").
+      row_total <- data %>%
+        dplyr::filter(.data$DCI == "Total", .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[4]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      eff <- vapply(21:23, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      Libelle_brut <- c(
+        "Au moment de la prise du médicament",
+        "Au moment de la prescription médicale",
+        "Au moment de la dispensation en pharmacie"
       )
+      # Toutes les modalités d'origine sont de niveau "detail" (pas de groupe).
+      Type <- rep("detail", length(Libelle_brut))
+
+      # Deux rangées par modalité (molécule puis ensemble des cas), avec le
+      # caractère invisible \u200B pour distinguer les catégories d'axe Y.
+      out <- do.call(rbind, lapply(seq_along(Libelle_brut), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_brut[k],
+            Libelle_brut = Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_brut[k], "\u200B"),
+            Libelle_brut = Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
     })
 
     # --- Données des barres horizontales du type de mésusage -------------------
@@ -419,8 +486,12 @@ mod_medoc_reg_server <- function(id) {
     #     - Utilisation en présence d'une interaction interdite (AW=49)
     #     - Autre                                             (AX=50)
     #
-    # Comme pour le graphique des âges, le pourcentage est RECALCULÉ sur le
-    # Total (colonne D, index 4) de la ligne "effectif" de la DCI sélectionnée.
+    # Comme pour le graphique des âges, le pourcentage est RECALCULÉ sur DEUX
+    # dénominateurs distincts :
+    #   * mode "molécule" : le Total (colonne D, index 4) de la ligne "effectif"
+    #     de la DCI sélectionnée ;
+    #   * mode "ensemble des cas" : le Total (colonne D) de la ligne agrégée
+    #     "Total" de l'ensemble de l'enquête.
     type_values <- reactive({
       dci <- selected_dci()
       req(dci)
@@ -434,9 +505,19 @@ mod_medoc_reg_server <- function(id) {
       }
       row <- row[1, ]
 
-      total <- suppressWarnings(as.numeric(row[[4]]))
-      if (is.na(total) || total <= 0) {
+      total_mol <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total_mol) || total_mol <= 0) {
         return(NULL)
+      }
+      row_total <- data %>%
+        dplyr::filter(.data$DCI == "Total", .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[4]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
       }
 
       # Définition hiérarchique : (libellé affiché, index colonne, niveau)
@@ -469,7 +550,6 @@ mod_medoc_reg_server <- function(id) {
       eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
       eff[is.na(eff)] <- 0
 
-      pct <- eff / total * 100
       Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
       # Libellé AFFICHÉ sur l'axe Y :
       #   * niveau 1 (groupes) : libellé entouré de <b>...</b> (gras, reconnu par
@@ -483,15 +563,163 @@ mod_medoc_reg_server <- function(id) {
         paste0("    ", defs$Libelle_brut)
       )
 
-      data.frame(
-        Libelle      = Libelle_aff,
-        Libelle_brut = defs$Libelle_brut,
-        Niveau       = defs$Niveau,
-        Type         = Type,
-        Effectif     = eff,
-        Pct          = pct,
-        stringsAsFactors = FALSE
+      # Deux rangées par libellé, dans l'ordre d'affichage (haut → bas) :
+      # d'abord la barre "molécule", puis juste en dessous celle "ensemble des
+      # cas". Le caractère invisible (\u200B) ajouté au libellé de la seconde
+      # barre permet à Plotly de distinguer deux catégories d'axe Y
+      # visuellement identiques.
+      out <- do.call(rbind, lapply(seq_along(Libelle_aff), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_aff[k],
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_aff[k], "\u200B"),
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
+    })
+
+    # --- Données des barres horizontales des facteurs de mésusage --------------
+    # Les données proviennent du fichier principaux_facteurs.xlsx (réactive
+    # principaux_facteurs()), lu en brut (col_names = FALSE) : ligne 2 = en-têtes,
+    # colonne B (2) = libellé facteur, colonne C (3) = type ("effectif"),
+    # colonne D (4) = "Total" (effectif global), colonnes EE..EQ (135 à 147) = une
+    # colonne par DCI (l'en-tête ligne 2 donne le nom de la DCI).
+    # DEUX barres par facteur, comme âge/origine/type :
+    #   * mode "molécule"        : Pct = effectif_facteur_dci / Total_DCI * 100 ;
+    #   * mode "ensemble des cas": Pct = Total_facteur / Total_enquête * 100.
+    # Les libellés affichés (courts) viennent du cahier des charges ; le mapping
+    # est appliqué PAR POSITION (ordre du fichier = ordre de la référence).
+    facteur_values <- reactive({
+      dci <- selected_dci()
+      data <- medoc_reg()
+      pf <- principaux_facteurs()
+      req(dci, data, pf)
+
+      # Total de la molécule (colonne D de la ligne "effectif" de la DCI).
+      row <- data %>%
+        dplyr::filter(.data$DCI == dci, .data$Type_donnee == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+      total_mol <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total_mol) || total_mol <= 0) {
+        return(NULL)
+      }
+
+      # Total ensemble des cas (colonne D de la ligne agrégée "Total").
+      row_total <- data %>%
+        dplyr::filter(.data$DCI == "Total", .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[4]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      # Colonnes EE..EQ (135:147) : une par DCI ; l'en-tête (ligne 2) porte le nom.
+      dci_cols <- 135:147
+      en_tetes <- vapply(dci_cols, function(i) {
+        v <- pf[[i]][2]
+        ifelse(is.na(v), "", as.character(v))
+      }, character(1))
+      hit <- which(en_tetes == dci)
+      if (length(hit) == 0) {
+        return(NULL)   # pas de colonne dédiée à cette DCI
+      }
+      dci_col <- dci_cols[hit[1]]
+
+      # Lignes "effectif" ; on écarte l'en-tête puis la ligne agrégée "Total".
+      types <- pf[[3]]
+      eff_lines <- which(types == "effectif")
+      eff_lines <- eff_lines[eff_lines > 2]
+      if (length(eff_lines) <= 1) {
+        return(NULL)
+      }
+      eff_lines <- eff_lines[-1]
+
+      # Libellés AFFICHÉS (courts) du cahier des charges, dans l'ordre du fichier.
+      lib_aff <- c(
+        "Manque d'info. ou com. interprofessionnelle",
+        "Entourage",
+        "A déjà reçu un méd. dans des cnd. sim.",
+        "Survenue d'effets indésirables",
+        "Médicament accessible sans ordonnance",
+        "Double prescription ou chevauchement TT",
+        "Défaut de transmission de l'information",
+        "Forme ou voie mal adaptée",
+        "Influence d'un discours promotionnel",
+        "Rupture de stock entrainant un remp.",
+        "Volonté du patient",
+        "Manquements du médecin",
+        "Volonté du médecin",
+        "Accoutumance",
+        "Douleurs persistantes",
+        "Amélioration des symptômes",
+        "Manque d'alternatives",
+        "Manque d'observance patient",
+        "Médecin trop permissif",
+        "Pharmacie en ligne",
+        "Médecin (sans précision)",
+        "Objectif esthétique",
+        "Environnement du patient",
+        "Manque de médecins",
+        "Manque de connaissance traitement",
+        "Manquement du pharmacien",
+        "Financier",
+        "Autre",
+        "Non renseigné"
       )
+      n <- min(length(eff_lines), length(lib_aff))
+      eff_lines <- eff_lines[seq_len(n)]
+      lib_aff <- lib_aff[seq_len(n)]
+
+      eff_dci <- vapply(eff_lines, function(i) {
+        suppressWarnings(as.numeric(pf[[dci_col]][i]))
+      }, numeric(1))
+      eff_dci[is.na(eff_dci)] <- 0
+      eff_global <- vapply(eff_lines, function(i) {
+        suppressWarnings(as.numeric(pf[[4]][i]))
+      }, numeric(1))
+      eff_global[is.na(eff_global)] <- 0
+
+      # Pas de hiérarchie : toutes les modalités de facteurs sont "detail".
+      Type <- rep("detail", n)
+
+      out <- do.call(rbind, lapply(seq_len(n), function(k) {
+        rbind(
+          data.frame(
+            Libelle = lib_aff[k], Libelle_brut = lib_aff[k],
+            Mode = "molécule", Type = Type[k], Effectif = eff_dci[k],
+            Pct = if (eff_dci[k] > 0) eff_dci[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle = paste0(lib_aff[k], "\u200B"), Libelle_brut = lib_aff[k],
+            Mode = "ensemble des cas", Type = Type[k], Effectif = eff_global[k],
+            Pct = if (eff_global[k] > 0) eff_global[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
     })
 
     # --- Message d'état (présence du fichier / données importées) ------------
@@ -769,6 +997,13 @@ mod_medoc_reg_server <- function(id) {
     })
 
     # --- Barres horizontales de l'origine du mésusage --------------------------
+    # Comme le graphique par âge, DEUX barres par modalité d'origine sont
+    # affichées : la première (bordeaux) exprime le pourcentage « par rapport à
+    # la molécule concernée » (dénominateur = total de la DCI sélectionnée), la
+    # seconde (orange), juste en dessous, « par rapport à l'ensemble des cas ».
+    # Le dénominateur est géré dans origine_values() ; ici on ne fait
+    # qu'afficher. Toutes les modalités étant de niveau "detail", seules les
+    # combinaisons "detail" alimentent la légende.
     output$plot_origine <- plotly::renderPlotly({
       dci <- selected_dci()
       ov <- origine_values()
@@ -776,36 +1011,71 @@ mod_medoc_reg_server <- function(id) {
         return(plotly::plotly_empty())
       }
 
-      # Une couleur unique pour l'origine (bordeaux "groupe" de R/colors.R).
-      col_bar <- rep(unname(age_colors()["groupe"]), nrow(ov))
+      # Couleurs officielles : bordeaux pour le mode "molécule", orange pour le
+      # mode "ensemble des cas" (helpers de R/colors.R).
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
 
-      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
-      txt <- paste0(ov$Effectif, " (", round(ov$Pct, 1), " %)")
+      # Couleur attribuée à chaque barre selon (Type, Mode).
+      col_vec <- ifelse(
+        ov$Mode == "molécule",
+        ifelse(ov$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(ov$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      ov$Col <- col_vec
 
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que les libellés se lisent de haut en bas.
       categoryarray <- rev(ov$Libelle)
 
-      plotly::plot_ly(
-        type = "bar",
-        orientation = "h",
-        x = ov$Pct,
-        y = ov$Libelle,
-        text = txt,
-        textposition = "auto",
-        cliponaxis = FALSE,
-        marker = list(color = col_bar),
-        customdata = ov$Effectif,
-        insidetextfont = list(color = "#ffffff"),
-        hovertemplate = paste0(
-          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
-          round(ov$Pct, 1), " %<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) %>%
+      # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
+      # (rangée du haut) porte le libellé, celle « ensemble des cas » (juste en
+      # dessous) n'en affiche pas.
+      ov$TickLabel <- ov$Libelle
+      ov$TickLabel[ov$Mode == "ensemble des cas"] <- ""
+
+      # Les combinaisons (Type × Mode), servies comme traces pour la légende.
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- ov[ov$Mode == g$Mode & ov$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
         plotly::layout(
           title = paste("Répartition par origine —", dci),
+          barmode = "overlay",
           xaxis = list(
             title = "Pourcentage (%)",
             range = c(0, 105),
@@ -817,13 +1087,29 @@ mod_medoc_reg_server <- function(id) {
             categoryarray = categoryarray,
             type = "category",
             automargin = TRUE,
-            tickfont = list(size = 11)
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(ov$TickLabel)
           ),
-          margin = list(l = 20, r = 20, t = 50, b = 20)
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
         )
     })
 
     # --- Barres horizontales du type de mésusage (2 niveaux hiérarchiques) -----
+    # Comme le graphique par âge, DEUX barres par libellé de type sont
+    # affichées : la première (bordeaux) exprime le pourcentage « par rapport à
+    # la molécule concernée » (dénominateur = total de la DCI sélectionnée), la
+    # seconde (orange), juste en dessous, « par rapport à l'ensemble des cas ».
+    # Le dénominateur est géré dans type_values() ; ici on ne fait qu'afficher.
+    # Les quatre combinaisons (Type : groupe/detail) × (Mode : molécule/ensemble
+    # des cas) forment quatre traces distinctes pour une légende lisible.
     output$plot_type <- plotly::renderPlotly({
       dci <- selected_dci()
       tv <- type_values()
@@ -831,48 +1117,78 @@ mod_medoc_reg_server <- function(id) {
         return(plotly::plotly_empty())
       }
 
-      # Couleurs officielles des barres de type : mêmes couleurs que le
-      # graphique des âges (niveau 1 = groupe, niveau 2 = detail), reprises
-      # depuis R/colors.R.
-      pal <- age_colors()
-      col_bar <- unname(pal[tv$Type])
+      # Couleurs officielles : bordeaux pour le mode "molécule", orange pour le
+      # mode "ensemble des cas" (helpers de R/colors.R).
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
 
-      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
-      txt <- paste0(tv$Effectif, " (", round(tv$Pct, 1), " %)")
+      # Couleur attribuée à chaque barre selon (Type, Mode).
+      col_vec <- ifelse(
+        tv$Mode == "molécule",
+        ifelse(tv$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(tv$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      tv$Col <- col_vec
 
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que la hiérarchie se lise de haut en bas.
       categoryarray <- rev(tv$Libelle)
 
-      plotly::plot_ly(
-        type = "bar",
-        orientation = "h",
-        x = tv$Pct,
-        y = tv$Libelle,
-        text = txt,
-        textposition = "auto",
-        cliponaxis = FALSE,
-        marker = list(color = col_bar),
-        # Le customdata transporte, pour CHAQUE barre, trois informations :
-        # (libellé propre sans gras, effectif, pourcentage arrondi) afin que
-        # l'infobulle affiche les bonnes valeurs de la barre survolée, sans
-        # réafficher la balise HTML <b> présente dans l'axe Y (Libelle).
-        # NB : on passe une LISTE de vecteurs (une par point) — c'est la forme
-        # que plotly.js attend pour un customdata à plusieurs champs ; un
-        # data.frame provoquerait une erreur de rendu javascript.
-        customdata = lapply(seq_len(nrow(tv)), function(i) {
-          c(tv$Libelle_brut[i], tv$Effectif[i], round(tv$Pct[i], 1))
-        }),
-        insidetextfont = list(color = "#ffffff"),
-        hovertemplate = paste0(
-          "%{customdata[0]}<br>Effectif : %{customdata[1]}",
-          "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) %>%
+      # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
+      # (rangée du haut) porte le libellé, celle « ensemble des cas » (juste en
+      # dessous) n'en affiche pas.
+      tv$TickLabel <- tv$Libelle
+      tv$TickLabel[tv$Mode == "ensemble des cas"] <- ""
+
+      # Les combinaisons (Type × Mode), servies comme traces pour la légende.
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- tv[tv$Mode == g$Mode & tv$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            # Le customdata transporte, pour CHAQUE barre, trois informations :
+            # (libellé propre sans gras, effectif, pourcentage arrondi) afin que
+            # l'infobulle affiche les bonnes valeurs de la barre survolée, sans
+            # réafficher la balise HTML <b> présente dans l'axe Y (Libelle).
+            # NB : on passe une LISTE de vecteurs (une par point) — c'est la forme
+            # que plotly.js attend pour un customdata à plusieurs champs ; un
+            # data.frame provoquerait une erreur de rendu javascript.
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
         plotly::layout(
           title = paste("Répartition par type —", dci),
+          barmode = "overlay",
           xaxis = list(
             title = "Pourcentage (%)",
             range = c(0, 105),
@@ -884,9 +1200,115 @@ mod_medoc_reg_server <- function(id) {
             categoryarray = categoryarray,
             type = "category",
             automargin = TRUE,
-            tickfont = list(size = 11)
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(tv$TickLabel)
           ),
-          margin = list(l = 20, r = 20, t = 50, b = 20)
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
+        )
+    })
+
+    # --- Barres horizontales des facteurs de mésusage --------------------------
+    # Comme pour l'origine/le type, DEUX barres par facteur : bordeaux = « par
+    # rapport à la molécule », orange = « par rapport à l'ensemble des cas » (voir
+    # facteur_values()). Tous les facteurs sont de niveau "detail" (pas de
+    # hiérarchie) : seule la combinaison "detail" alimente réellement la légende.
+    output$plot_facteur <- plotly::renderPlotly({
+      dci <- selected_dci()
+      fv <- facteur_values()
+      if (is.null(dci) || is.null(fv) || nrow(fv) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      # Couleurs officielles : bordeaux (molécule) / orange (ensemble des cas).
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
+
+      col_vec <- ifelse(
+        fv$Mode == "molécule",
+        ifelse(fv$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(fv$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      fv$Col <- col_vec
+
+      # Orientation "h" : plotly place la 1re catégorie du categoryarray en bas.
+      categoryarray <- rev(fv$Libelle)
+
+      # Libellé d'axe Y UNIQUE par paire : la barre « molécule » le porte, celle
+      # « ensemble des cas » (juste en dessous) n'en affiche pas.
+      fv$TickLabel <- fv$Libelle
+      fv$TickLabel[fv$Mode == "ensemble des cas"] <- ""
+
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- fv[fv$Mode == g$Mode & fv$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
+        plotly::layout(
+          title = paste("Répartition par facteur —", dci),
+          barmode = "overlay",
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(fv$TickLabel)
+          ),
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
         )
     })
 

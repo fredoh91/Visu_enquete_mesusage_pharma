@@ -86,14 +86,14 @@ mod_lib_code_atc_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_genre"), height = "320px")
+            plotly::plotlyOutput(ns("plot_genre"), height = "640px")
           )
         ),
         tags$div(
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_enceinte"), height = "320px")
+            plotly::plotlyOutput(ns("plot_enceinte"), height = "640px")
           )
         ),
         tags$div(
@@ -107,14 +107,14 @@ mod_lib_code_atc_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_origine"), height = "320px")
+            plotly::plotlyOutput(ns("plot_origine"), height = "640px")
           )
         ),
         tags$div(
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            plotly::plotlyOutput(ns("plot_type"), height = "420px")
+            plotly::plotlyOutput(ns("plot_type"), height = "640px")
           )
         )
       )
@@ -411,8 +411,14 @@ mod_lib_code_atc_server <- function(id) {
     # On accède par index numérique car certains libellés contiennent des
     # espaces insécables.
     #
-    # Le pourcentage est RECALCULÉ sur l'effectif TOTAL des données "origine",
-    # c'est-à-dire la somme des colonnes 22 + 23 + 24 (conformément aux directives).
+    # Comme pour le graphique des âges et du type, DEUX modes de calcul des
+    # pourcentages sont produits pour chaque libellé :
+    #   * mode "molécule"         : dénominateur = effectif total du code ATC
+    #     (colonne E, index 5, de la ligne "effectif" du code sélectionné) ;
+    #   * mode "ensemble des cas" : dénominateur = effectif total de l'ensemble
+    #     de l'enquête (colonne E de la ligne agrégée "Total").
+    # Cela génère donc 2 rangées par modalité d'origine (toutes de niveau
+    # "detail", sans hiérarchie), dans le même format que age_values().
     origine_values <- reactive({
       code <- selected_code()
       req(code)
@@ -427,24 +433,61 @@ mod_lib_code_atc_server <- function(id) {
       }
       row <- row[1, ]
 
-      eff <- vapply(22:24, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
-      eff[is.na(eff)] <- 0
-
-      total <- sum(eff)
-      if (is.na(total) || total <= 0) {
+      # Total relatif au code ATC sélectionné (colonne E).
+      total_mol <- suppressWarnings(as.numeric(row[[5]]))
+      if (is.na(total_mol) || total_mol <= 0) {
         return(NULL)
       }
 
-      data.frame(
-        Libelle  = c(
-          "Au moment de la prise du médicament",
-          "Au moment de la prescription médicale",
-          "Au moment de la dispensation en pharmacie"
-        ),
-        Effectif = eff,
-        Pct      = eff / total * 100,
-        stringsAsFactors = FALSE
+      # Total de l'ensemble des cas (colonne E de la ligne "Total").
+      row_total <- data %>%
+        dplyr::filter(.data[["Code ATC"]] == "Total",
+                      .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[5]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      eff <- vapply(22:24, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      Libelle_brut <- c(
+        "Au moment de la prise du médicament",
+        "Au moment de la prescription médicale",
+        "Au moment de la dispensation en pharmacie"
       )
+      # Toutes les modalités d'origine sont de niveau "detail" (pas de groupe).
+      Type <- rep("detail", length(Libelle_brut))
+
+      # Deux rangées par modalité (molécule puis ensemble des cas), avec le
+      # caractère invisible \u200B pour distinguer les catégories d'axe Y.
+      out <- do.call(rbind, lapply(seq_along(Libelle_brut), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_brut[k],
+            Libelle_brut = Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_brut[k], "\u200B"),
+            Libelle_brut = Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
     })
 
     # --- Données des barres horizontales du type de mésusage -------------------
@@ -463,8 +506,12 @@ mod_lib_code_atc_server <- function(id) {
     #     - Utilisation en présence d'une interaction interdite (colonne 50)
     #     - Autre                                             (colonne 51)
     #
-    # Comme pour le graphique des âges, le pourcentage est RECALCULÉ sur le
-    # Total (colonne E, index 5) de la ligne "effectif" du code ATC sélectionné.
+    # Comme pour le graphique des âges, le pourcentage est RECALCULÉ sur DEUX
+    # dénominateurs distincts :
+    #   * mode "molécule" : le Total (colonne E, index 5) de la ligne "effectif"
+    #     du code ATC sélectionné ;
+    #   * mode "ensemble des cas" : le Total (colonne E) de la ligne agrégée
+    #     "Total" de l'ensemble de l'enquête.
     type_values <- reactive({
       code <- selected_code()
       req(code)
@@ -479,9 +526,20 @@ mod_lib_code_atc_server <- function(id) {
       }
       row <- row[1, ]
 
-      total <- suppressWarnings(as.numeric(row[[5]]))
-      if (is.na(total) || total <= 0) {
+      total_mol <- suppressWarnings(as.numeric(row[[5]]))
+      if (is.na(total_mol) || total_mol <= 0) {
         return(NULL)
+      }
+      row_total <- data %>%
+        dplyr::filter(.data[["Code ATC"]] == "Total",
+                      .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[5]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
       }
 
       # Définition hiérarchique : (libellé affiché, index colonne, niveau)
@@ -514,7 +572,6 @@ mod_lib_code_atc_server <- function(id) {
       eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
       eff[is.na(eff)] <- 0
 
-      pct <- eff / total * 100
       Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
       # Libellé AFFICHÉ sur l'axe Y :
       #   * niveau 1 (groupes) : libellé entouré de <b>...</b> (gras, reconnu par
@@ -528,14 +585,34 @@ mod_lib_code_atc_server <- function(id) {
         paste0("    ", defs$Libelle_brut)
       )
 
-      data.frame(
-        Libelle      = Libelle_aff,
-        Libelle_brut = defs$Libelle_brut,
-        Type         = Type,
-        Effectif     = eff,
-        Pct          = pct,
-        stringsAsFactors = FALSE
-      )
+      # Deux rangées par libellé, dans l'ordre d'affichage (haut → bas) :
+      # d'abord la barre "molécule", puis juste en dessous celle "ensemble des
+      # cas". Le caractère invisible (\u200B) ajouté au libellé de la seconde
+      # barre permet à Plotly de distinguer deux catégories d'axe Y
+      # visuellement identiques.
+      out <- do.call(rbind, lapply(seq_along(Libelle_aff), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_aff[k],
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_aff[k], "\u200B"),
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
     })
 
 
@@ -815,6 +892,13 @@ mod_lib_code_atc_server <- function(id) {
 
 
     # --- Barres horizontales de l'origine du mésusage --------------------------
+    # Comme le graphique par âge, DEUX barres par modalité d'origine sont
+    # affichées : la première (bordeaux) exprime le pourcentage « par rapport à
+    # la molécule concernée » (dénominateur = total du code ATC sélectionné), la
+    # seconde (orange), juste en dessous, « par rapport à l'ensemble des cas ».
+    # Le dénominateur est géré dans origine_values() ; ici on ne fait
+    # qu'afficher. Toutes les modalités étant de niveau "detail", seules les
+    # combinaisons "detail" alimentent la légende.
     output$plot_origine <- plotly::renderPlotly({
       code <- selected_code()
       ov <- origine_values()
@@ -822,36 +906,71 @@ mod_lib_code_atc_server <- function(id) {
         return(plotly::plotly_empty())
       }
 
-      # Une couleur unique pour l'origine (bordeaux "groupe" de R/colors.R).
-      col_bar <- rep(unname(age_colors()["groupe"]), nrow(ov))
+      # Couleurs officielles : bordeaux pour le mode "molécule", orange pour le
+      # mode "ensemble des cas" (helpers de R/colors.R).
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
 
-      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
-      txt <- paste0(ov$Effectif, " (", round(ov$Pct, 1), " %)")
+      # Couleur attribuée à chaque barre selon (Type, Mode).
+      col_vec <- ifelse(
+        ov$Mode == "molécule",
+        ifelse(ov$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(ov$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      ov$Col <- col_vec
 
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que les libellés se lisent de haut en bas.
       categoryarray <- rev(ov$Libelle)
 
-      plotly::plot_ly(
-        type = "bar",
-        orientation = "h",
-        x = ov$Pct,
-        y = ov$Libelle,
-        text = txt,
-        textposition = "auto",
-        cliponaxis = FALSE,
-        marker = list(color = col_bar),
-        customdata = ov$Effectif,
-        insidetextfont = list(color = "#ffffff"),
-        hovertemplate = paste0(
-          "%{y}<br>Effectif : %{customdata}<br>Pourcentage : ",
-          round(ov$Pct, 1), " %<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) %>%
+      # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
+      # (rangée du haut) porte le libellé, celle « ensemble des cas » (juste en
+      # dessous) n'en affiche pas.
+      ov$TickLabel <- ov$Libelle
+      ov$TickLabel[ov$Mode == "ensemble des cas"] <- ""
+
+      # Les combinaisons (Type × Mode), servies comme traces pour la légende.
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- ov[ov$Mode == g$Mode & ov$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
         plotly::layout(
           title = atc_titre("Répartition par origine —", selected_lib(), code),
+          barmode = "overlay",
           xaxis = list(
             title = "Pourcentage (%)",
             range = c(0, 105),
@@ -863,13 +982,29 @@ mod_lib_code_atc_server <- function(id) {
             categoryarray = categoryarray,
             type = "category",
             automargin = TRUE,
-            tickfont = list(size = 11)
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(ov$TickLabel)
           ),
-          margin = list(l = 20, r = 20, t = 50, b = 20)
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
         )
     })
 
     # --- Barres horizontales du type de mésusage (2 niveaux hiérarchiques) -----
+    # Comme le graphique par âge, DEUX barres par libellé de type sont
+    # affichées : la première (bordeaux) exprime le pourcentage « par rapport à
+    # la molécule concernée » (dénominateur = total du code ATC sélectionné), la
+    # seconde (orange), juste en dessous, « par rapport à l'ensemble des cas ».
+    # Le dénominateur est géré dans type_values() ; ici on ne fait qu'afficher.
+    # Les quatre combinaisons (Type : groupe/detail) × (Mode : molécule/ensemble
+    # des cas) forment quatre traces distinctes pour une légende lisible.
     output$plot_type <- plotly::renderPlotly({
       code <- selected_code()
       tv <- type_values()
@@ -877,48 +1012,78 @@ mod_lib_code_atc_server <- function(id) {
         return(plotly::plotly_empty())
       }
 
-      # Couleurs officielles des barres de type : mêmes couleurs que le
-      # graphique des âges (niveau 1 = groupe, niveau 2 = detail), reprises
-      # depuis R/colors.R.
-      pal <- age_colors()
-      col_bar <- unname(pal[tv$Type])
+      # Couleurs officielles : bordeaux pour le mode "molécule", orange pour le
+      # mode "ensemble des cas" (helpers de R/colors.R).
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
 
-      # Étiquettes : "effectif (pourcentage)" arrondi à 1 décimale.
-      txt <- paste0(tv$Effectif, " (", round(tv$Pct, 1), " %)")
+      # Couleur attribuée à chaque barre selon (Type, Mode).
+      col_vec <- ifelse(
+        tv$Mode == "molécule",
+        ifelse(tv$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(tv$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      tv$Col <- col_vec
 
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que la hiérarchie se lise de haut en bas.
       categoryarray <- rev(tv$Libelle)
 
-      plotly::plot_ly(
-        type = "bar",
-        orientation = "h",
-        x = tv$Pct,
-        y = tv$Libelle,
-        text = txt,
-        textposition = "auto",
-        cliponaxis = FALSE,
-        marker = list(color = col_bar),
-        # Le customdata transporte, pour CHAQUE barre, trois informations :
-        # (libellé propre sans gras, effectif, pourcentage arrondi) afin que
-        # l'infobulle affiche les bonnes valeurs de la barre survolée, sans
-        # réafficher la balise HTML <b> présente dans l'axe Y (Libelle).
-        # NB : on passe une LISTE de vecteurs (une par point) — c'est la forme
-        # que plotly.js attend pour un customdata à plusieurs champs ; un
-        # data.frame provoquerait une erreur de rendu javascript.
-        customdata = lapply(seq_len(nrow(tv)), function(i) {
-          c(tv$Libelle_brut[i], tv$Effectif[i], round(tv$Pct[i], 1))
-        }),
-        insidetextfont = list(color = "#ffffff"),
-        hovertemplate = paste0(
-          "%{customdata[0]}<br>Effectif : %{customdata[1]}",
-          "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) %>%
+      # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
+      # (rangée du haut) porte le libellé, celle « ensemble des cas » (juste en
+      # dessous) n'en affiche pas.
+      tv$TickLabel <- tv$Libelle
+      tv$TickLabel[tv$Mode == "ensemble des cas"] <- ""
+
+      # Les combinaisons (Type × Mode), servies comme traces pour la légende.
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- tv[tv$Mode == g$Mode & tv$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            # Le customdata transporte, pour CHAQUE barre, trois informations :
+            # (libellé propre sans gras, effectif, pourcentage arrondi) afin que
+            # l'infobulle affiche les bonnes valeurs de la barre survolée, sans
+            # réafficher la balise HTML <b> présente dans l'axe Y (Libelle).
+            # NB : on passe une LISTE de vecteurs (une par point) — c'est la forme
+            # que plotly.js attend pour un customdata à plusieurs champs ; un
+            # data.frame provoquerait une erreur de rendu javascript.
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
         plotly::layout(
           title = atc_titre("Répartition par type —", selected_lib(), code),
+          barmode = "overlay",
           xaxis = list(
             title = "Pourcentage (%)",
             range = c(0, 105),
@@ -930,9 +1095,18 @@ mod_lib_code_atc_server <- function(id) {
             categoryarray = categoryarray,
             type = "category",
             automargin = TRUE,
-            tickfont = list(size = 11)
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(tv$TickLabel)
           ),
-          margin = list(l = 20, r = 20, t = 50, b = 20)
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
         )
     })
   })

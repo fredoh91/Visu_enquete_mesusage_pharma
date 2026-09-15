@@ -58,6 +58,12 @@ lib_code_atc_path <- function() {
   file.path(data_dir(), "LIB_CODE_ATC_OXOMEMAZINE.xlsx")
 }
 
+#' Chemin complet vers le fichier Excel des facteurs.
+#' @return Chemin absolu vers data/principaux_facteurs.xlsx.
+principaux_facteurs_path <- function() {
+  file.path(data_dir(), "principaux_facteurs.xlsx")
+}
+
 # --- Lecture LIB_CODE_ATC_OXOMEMAZINE ---------------------------------------
 #' Importe le fichier data/LIB_CODE_ATC_OXOMEMAZINE.xlsx dans une dataframe.
 #'
@@ -80,6 +86,31 @@ read_lib_code_atc <- function(path = lib_code_atc_path()) {
     stop("Fichier Excel LIB_CODE_ATC_OXOMEMAZINE introuvable : ", path)
   }
   readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
+}
+
+# --- Lecture principaux_facteurs ----------------------------------------------
+#' Importe le fichier data/principaux_facteurs.xlsx dans une dataframe.
+#'
+#' Contrairement aux fichiers MEDOC_REG et LIB_CODE_ATC, l'onglet de ce fichier
+#' est organisé « en transposé » : chaque ligne correspond à un facteur (libellé
+#' en colonne B, type de donnée « effectif » / « pourcentage » / « significativite »
+#' en colonne C, effectif global en colonne D « Total »), et chaque DCI occupe une
+#' colonne dédiée (EE..EQ, c'est-à-dire les indices 135 à 147) dont l'en-tête
+#' (ligne 2) donne le nom de la DCI.
+#'
+#' On lit donc le fichier SANS ignorer de ligne et sans nommer les colonnes
+#' (col_names = FALSE) : la ligne 1 contient les grandes catégories, la ligne 2
+#' les en-têtes de colonnes et les lignes suivantes les données. On accède aux
+#' colonnes par indice numérique, ce qui garantit la robustesse face aux
+#' libellés contenant des espaces insécables.
+#'
+#' @return Une dataframe brute issue de readxl::read_excel() (col_names = FALSE).
+#' @export
+read_principaux_facteurs <- function(path = principaux_facteurs_path()) {
+  if (!file.exists(path)) {
+    stop("Fichier Excel principaux_facteurs introuvable : ", path)
+  }
+  readxl::read_excel(path, sheet = 1L, col_names = FALSE, .name_repair = "minimal")
 }
 
 # --- Lecture générique (futurs fichiers Excel) ------------------------------
