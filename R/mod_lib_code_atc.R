@@ -116,6 +116,40 @@ mod_lib_code_atc_ui <- function(id) {
             class = "graph-card",
             plotly::plotlyOutput(ns("plot_type"), height = "640px")
           )
+        ),
+        # Carte 6 : barres horizontales des facteurs de mésusage.
+        # Comme dans l'onglet MEDOC_REG, ce graphique exploite le fichier Excel
+        # distinct principaux_facteurs.xlsx, chargé en parallèle de
+        # LIB_CODE_ATC_OXOMEMAZINE.xlsx. La liaison se fait par le code ATC
+        # (en-têtes de ligne 2 des colonnes EX -> FI = indices 154:165).
+        # Le grand nombre de facteurs (29) justifie un dépliage : par défaut on
+        # n'affiche que les 15 premiers pourcentages, une case à cocher permet
+        # d'afficher l'ensemble des facteurs.
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            shiny::checkboxInput(
+              ns("facteur_afficher_tous"),
+              label = "Afficher les 29 facteurs (déplier)",
+              value = FALSE
+            ),
+            # La hauteur est pilotée côté serveur (renderUI + facteur_height()) :
+            # compacte pour la vue "15 premiers", agrandie après dépliage.
+            shiny::uiOutput(ns("plot_facteur_ui"))
+          )
+        ),
+
+        # Carte 7 : barres horizontales du type de prise (2 niveaux hiérarchiques).
+        # Les données proviennent des colonnes Y -> AE de
+        # LIB_CODE_ATC_OXOMEMAZINE.xlsx et se répartissent sur 2 niveaux
+        # (comme les graphiques âge et type).
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_type_prise"), height = "640px")
+          )
         )
       )
     )
@@ -140,6 +174,19 @@ mod_lib_code_atc_server <- function(id) {
       )
     })
 
+    # --- Données brutes des facteurs (principaux_facteurs.xlsx) -------------
+    # Chargé au même moment que LIB_CODE_ATC_OXOMEMAZINE.xlsx pour alimenter le
+    # 6e graphique de l'onglet (barres horizontales des facteurs de mésusage).
+    # Fichier transposé (col_names = FALSE) : chaque ligne = un facteur ; chaque
+    # code ATC occupe une colonne dédiée (EX..FI = indices 154:165) dont l'en-tête
+    # (ligne 2) porte le libellé au format "CODE (Libellé)".
+    principaux_facteurs <- reactive({
+      tryCatch(
+        read_principaux_facteurs(),
+        error = function(e) NULL
+      )
+    })
+
     # --- Dataframe des codes ATC (affichage basique) -------------------------
     # Ne conserve que les lignes du type "effectif" et exclut les lignes
     # "Total" (périmètre global) ainsi que la ligne agrégée "Autres codes ATC
@@ -150,7 +197,7 @@ mod_lib_code_atc_server <- function(id) {
       data <- lib_code_atc()
       req(data)
       data %>%
-        dplyr::filter(.data$Type_donnee == "effectif") %>%
+        dplyr::filter(.data[["Type_donnee"]] == "effectif") %>%
         dplyr::filter(!.data[["Code ATC"]] %in% c(
           "Total",
           "Autres codes ATC (inférieurs à 30)"
@@ -188,7 +235,7 @@ mod_lib_code_atc_server <- function(id) {
 
       row <- data %>%
         dplyr::filter(.data[["Code ATC"]] == code,
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
 
       if (nrow(row) != 1) {
         return(NULL)
@@ -300,7 +347,7 @@ mod_lib_code_atc_server <- function(id) {
 
       row <- data %>%
         dplyr::filter(.data[["Code ATC"]] == code,
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
       if (nrow(row) != 1) {
         return(NULL)
       }
@@ -317,7 +364,7 @@ mod_lib_code_atc_server <- function(id) {
       # deux pourcentages seraient alors égaux).
       row_total <- data %>%
         dplyr::filter(.data[["Code ATC"]] == "Total",
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
       total_ens <- if (nrow(row_total) >= 1) {
         suppressWarnings(as.numeric(row_total[[5]][1]))
       } else {
@@ -427,7 +474,7 @@ mod_lib_code_atc_server <- function(id) {
 
       row <- data %>%
         dplyr::filter(.data[["Code ATC"]] == code,
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
       if (nrow(row) != 1) {
         return(NULL)
       }
@@ -442,7 +489,7 @@ mod_lib_code_atc_server <- function(id) {
       # Total de l'ensemble des cas (colonne E de la ligne "Total").
       row_total <- data %>%
         dplyr::filter(.data[["Code ATC"]] == "Total",
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
       total_ens <- if (nrow(row_total) >= 1) {
         suppressWarnings(as.numeric(row_total[[5]][1]))
       } else {
@@ -520,7 +567,7 @@ mod_lib_code_atc_server <- function(id) {
 
       row <- data %>%
         dplyr::filter(.data[["Code ATC"]] == code,
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
       if (nrow(row) != 1) {
         return(NULL)
       }
@@ -532,7 +579,7 @@ mod_lib_code_atc_server <- function(id) {
       }
       row_total <- data %>%
         dplyr::filter(.data[["Code ATC"]] == "Total",
-                      .data$Type_donnee == "effectif")
+                      .data[["Type_donnee"]] == "effectif")
       total_ens <- if (nrow(row_total) >= 1) {
         suppressWarnings(as.numeric(row_total[[5]][1]))
       } else {
@@ -548,13 +595,13 @@ mod_lib_code_atc_server <- function(id) {
       # entre parenthèses "(Afficher : ...)" : les groupes de niveau 1 sont
       # affichés "Total Posologie, Fréquence, durée" / "Total Indication,
       # population, CI" (en gras), les libellés de niveau 2 ne sont pas en gras
-      # (l'arrêt prématuré et injustifié du traitement est volontairement sans
-      # libellé affiché).
+      # (l'arrêt prématuré et injustifié du traitement est affiché
+      # « Arrêt prématuré »).
       defs <- data.frame(
         Libelle_brut = c(
           "Total Posologie, Fréquence, durée",        # groupe (niveau 1)
           "Schéma posologique non conforme",
-          "",                                          # arrêt prématuré (sans libellé)
+          "Arrêt prématuré",
           "Prolongation durée TT",
           "Voie d'administration non conforme",
           "Total Indication, population, CI",         # groupe (niveau 1)
@@ -615,6 +662,274 @@ mod_lib_code_atc_server <- function(id) {
       out
     })
 
+    # --- Données des barres horizontales du type de prise -----------------------
+    # Lecture depuis la ligne "effectif" du code ATC sélectionné. Les colonnes
+    # concernées vont de Y à AE (index 25 à 31) et se répartissent sur 2 niveaux
+    # hiérarchiques (comme les graphiques des âges et du type) :
+    #   Niveau 1 « Médicament avec ordonnance » (colonne Y=25) :
+    #     - D'une primo-prescription                    (Z=26)
+    #     - D'un renouvellement d'ordonnance            (AA=27)
+    #   Niveau 1 « Médicament sans ordonnance » (colonne AB=28) :
+    #     - D'un médicament sans ordonnance en automédication         (AC=29)
+    #     - D'un médicament sans ordonnance sur conseil du pharmacien (AD=30)
+    #     - Je ne sais pas                                             (AE=31)
+    #
+    # Comme les graphiques précédents, le pourcentage est RECALCULÉ sur DEUX
+    # dénominateurs distincts : mode "molécule" (total du code ATC sélectionné)
+    # et mode "ensemble des cas" (total de la ligne agrégée "Total"). L'affichage
+    # est géré en aval par le render plot_type_prise.
+    type_prise_values <- reactive({
+      code <- selected_code()
+      req(code)
+      data <- lib_code_atc()
+      req(data)
+
+      row <- data %>%
+        dplyr::filter(.data[["Code ATC"]] == code,
+                      .data[["Type_donnee"]] == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+
+      total_mol <- suppressWarnings(as.numeric(row[[5]]))
+      if (is.na(total_mol) || total_mol <= 0) {
+        return(NULL)
+      }
+      row_total <- data %>%
+        dplyr::filter(.data[["Code ATC"]] == "Total",
+                      .data[["Type_donnee"]] == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[5]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      # Définition hiérarchique : (libellé affiché, index colonne, niveau).
+      # Ordre d'affichage de haut en bas. Les groupes de niveau 1 sont affichés
+      # « Prise avec ordonnance » / « Prise sans ordonnance » (en gras), les
+      # libellés de niveau 2 ne sont pas en gras.
+      defs <- data.frame(
+        Libelle_brut = c(
+          "Prise avec ordonnance",       # groupe (niveau 1)
+          "Primo prescription",
+          "Renouvellement",
+          "Prise sans ordonnance",       # groupe (niveau 1)
+          "Sans ordo en automédication",
+          "Sur conseil du pharmacien",
+          "Je ne sais pas"
+        ),
+        Index = c(25L, 26L, 27L, 28L, 29L, 30L, 31L),
+        Niveau = c(1L, 2L, 2L, 1L, 2L, 2L, 2L),
+        stringsAsFactors = FALSE
+      )
+
+      eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      Type  <- ifelse(defs$Niveau == 1L, "groupe", "detail")
+      # Libellé AFFICHÉ sur l'axe Y : gras (<b>...</b>) pour les groupes de
+      # niveau 1, indentation de 4 espaces pour les détails de niveau 2 (pas de
+      # balise HTML afin de préserver le rendu des espaces).
+      Libelle_aff <- ifelse(
+        defs$Niveau == 1L,
+        paste0("<b>", defs$Libelle_brut, "</b>"),
+        paste0("    ", defs$Libelle_brut)
+      )
+
+      # Deux rangées par libellé (molécule puis ensemble des cas). Le caractère
+      # invisible (\u200B) distingue les catégories d'axe Y identiques.
+      out <- do.call(rbind, lapply(seq_along(Libelle_aff), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_aff[k],
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_aff[k], "\u200B"),
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
+    })
+
+    # --- Données des barres horizontales des facteurs de mésusage --------------
+    # Comme dans l'onglet MEDOC_REG, DEUX barres par facteur : bordeaux = « par
+    # rapport au code ATC sélectionné », orange = « par rapport à l'ensemble des
+    # cas ». Données issues de principaux_facteurs.xlsx (lignes "effectif"),
+    # colonnes EX..FI (indices 154:165) dont l'en-tête de ligne 2 est au format
+    # "CODE (Libellé)" : la sélection se fait par le code ATC.
+    facteur_values <- reactive({
+      code <- selected_code()
+      data <- lib_code_atc()
+      pf <- principaux_facteurs()
+      req(code, data, pf)
+
+      # Total du code ATC sélectionné (colonne E : Total).
+      row <- data %>%
+        dplyr::filter(.data[["Code ATC"]] == code,
+                      .data[["Type_donnee"]] == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+      total_mol <- suppressWarnings(as.numeric(row[[5]]))
+      if (is.na(total_mol) || total_mol <= 0) {
+        return(NULL)
+      }
+
+      # Total de l'ensemble des cas (colonne E de la ligne "Total").
+      row_total <- data %>%
+        dplyr::filter(.data[["Code ATC"]] == "Total",
+                      .data[["Type_donnee"]] == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[5]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      # Colonnes EX..FI (154:165) : une par code ATC ; l'en-tête (ligne 2) y est
+      # stocké au format "CODE (Libellé)". On n'en extrait que le code ATC (la
+      # partie avant le premier espace) pour comparer à selected_code().
+      dci_cols <- 154:165
+      en_tetes <- vapply(dci_cols, function(i) {
+        v <- pf[[i]][2]
+        ifelse(is.na(v), "", as.character(v))
+      }, character(1))
+      codes_entetes <- sub(" .*$", "", en_tetes)
+      hit <- which(trimws(codes_entetes) == trimws(as.character(code)))
+      if (length(hit) == 0) {
+        return(NULL)   # pas de colonne dédiée à ce code ATC
+      }
+      dci_col <- dci_cols[hit[1]]
+
+      # Lignes "effectif" ; on écarte l'en-tête puis la ligne agrégée "Total".
+      types <- pf[[3]]
+      eff_lines <- which(types == "effectif")
+      eff_lines <- eff_lines[eff_lines > 2]
+      if (length(eff_lines) <= 1) {
+        return(NULL)
+      }
+      eff_lines <- eff_lines[-1]
+
+      # Libellés AFFICHÉS (courts) du cahier des charges, dans l'ordre du fichier.
+      lib_aff <- c(
+        "Manque d'info. ou com. interprofessionnelle",
+        "Entourage",
+        "A déjà reçu un méd. dans des cnd. sim.",
+        "Survenue d'effets indésirables",
+        "Médicament accessible sans ordonnance",
+        "Double prescription ou chevauchement TT",
+        "Défaut de transmission de l'information",
+        "Forme ou voie mal adaptée",
+        "Influence d'un discours promotionnel",
+        "Rupture de stock entraînant un remp.",
+        "Volonté du patient",
+        "Manquements du médecin",
+        "Volonté du médecin",
+        "Accoutumance",
+        "Douleurs persistantes",
+        "Amélioration des symptômes",
+        "Manque d'alternatives",
+        "Manque d'observance patient",
+        "Médecin trop permissif",
+        "Pharmacie en ligne",
+        "Médecin (sans précision)",
+        "Objectif esthétique",
+        "Environnement du patient",
+        "Manque de médecins",
+        "Manque de connaissance traitement",
+        "Manquement du pharmacien",
+        "Financier",
+        "Autre",
+        "Non renseigné"
+      )
+      n <- min(length(eff_lines), length(lib_aff))
+      eff_lines <- eff_lines[seq_len(n)]
+      lib_aff <- lib_aff[seq_len(n)]
+
+      eff_dci <- vapply(eff_lines, function(i) {
+        suppressWarnings(as.numeric(pf[[dci_col]][i]))
+      }, numeric(1))
+      eff_dci[is.na(eff_dci)] <- 0
+      eff_global <- vapply(eff_lines, function(i) {
+        suppressWarnings(as.numeric(pf[[4]][i]))
+      }, numeric(1))
+      eff_global[is.na(eff_global)] <- 0
+
+      # Tri par pourcentage DÉCROISSANT (critère = barre "molécule").
+      pct_mol <- ifelse(eff_dci > 0, eff_dci / total_mol * 100, 0)
+      ordre <- order(pct_mol, decreasing = TRUE)
+      eff_dci <- eff_dci[ordre]
+      eff_global <- eff_global[ordre]
+      lib_aff <- lib_aff[ordre]
+
+      # Pas de hiérarchie : toutes les modalités de facteurs sont "detail".
+      Type <- rep("detail", n)
+
+      out <- do.call(rbind, lapply(seq_len(n), function(k) {
+        rbind(
+          data.frame(
+            Libelle = lib_aff[k], Libelle_brut = lib_aff[k],
+            Mode = "molécule", Type = Type[k], Effectif = eff_dci[k],
+            Pct = if (eff_dci[k] > 0) eff_dci[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle = paste0(lib_aff[k], "\u200B"), Libelle_brut = lib_aff[k],
+            Mode = "ensemble des cas", Type = Type[k], Effectif = eff_global[k],
+            Pct = if (eff_global[k] > 0) eff_global[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
+    })
+
+    # --- Hauteur du graphique facteur (responsive au dépliage) ----------------
+    # Vue "15 premiers facteurs" : 2 barres × 15 ≈ 30 barres → hauteur compacte.
+    # Vue "tous" (29 facteurs) : 2 barres × 29 ≈ 58 barres → hauteur agrandie.
+    # Hauteurs alignées sur celles de l'onglet MEDOC_REG (820 px plié / 1000 px
+    # déplié) afin que les pourcentages restent parfaitement lisibles.
+    facteur_height <- reactive({
+      if (isTRUE(input$facteur_afficher_tous)) {
+        "1000px"
+      } else {
+        "820px"
+      }
+    })
+    # --- Jeu de données affiché (filtrage 15 premiers / tous) -----------------
+    # Extrait de facteur_values() le sous-ensemble effectivement tracé : 30 lignes
+    # (15 facteurs × 2 barres) par défaut, ou la totalité (58 = 29 × 2) quand la
+    # case "Afficher les 29 facteurs" est cochée. facteur_values() étant déjà trié
+    # par pourcentage décroissant, garder les premières lignes = garder les 15
+    # plus grands pourcentages. Réactive séparée ⟹ testable via testServer et
+    # réutilisée par le render plot_facteur.
+    facteur_plot_data <- reactive({
+      fv <- facteur_values()
+      if (is.null(fv) || nrow(fv) == 0) {
+        return(NULL)
+      }
+      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else 30
+      fv[seq_len(min(n_lignes, nrow(fv))), ]
+    })
 
     # --- Message / état de l'import des données --------------------------------
     output$etat <- renderUI({
@@ -1109,6 +1424,231 @@ mod_lib_code_atc_server <- function(id) {
           )
         )
     })
+
+    # --- Barres horizontales du type de prise (2 niveaux hiérarchiques) ----------
+    # Comme le graphique du type de mésusage, DEUX barres par libellé : la
+    # première (bordeaux) exprime le pourcentage « par rapport au code ATC
+    # sélectionné », la seconde (orange), juste en dessous, « par rapport à
+    # l'ensemble des cas ». Les dénominateurs sont gérés dans type_prise_values() ;
+    # ici on ne fait qu'afficher. Les quatre combinaisons (Type : groupe/detail) ×
+    # (Mode : molécule/ensemble des cas) forment quatre traces distinctes pour
+    # une légende lisible.
+    output$plot_type_prise <- plotly::renderPlotly({
+      code <- selected_code()
+      tp <- type_prise_values()
+      if (is.null(code) || is.null(tp) || nrow(tp) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      # Couleurs officielles : bordeaux (molécule) / orange (ensemble des cas).
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
+
+      col_vec <- ifelse(
+        tp$Mode == "molécule",
+        ifelse(tp$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(tp$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      tp$Col <- col_vec
+
+      # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
+      # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
+      # voulu pour que la hiérarchie se lise de haut en bas.
+      categoryarray <- rev(tp$Libelle)
+
+      # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
+      # (rangée du haut) porte le libellé, celle « ensemble des cas » (juste en
+      # dessous) n'en affiche pas.
+      tp$TickLabel <- tp$Libelle
+      tp$TickLabel[tp$Mode == "ensemble des cas"] <- ""
+
+      # Les combinaisons (Type × Mode), servies comme traces pour la légende.
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- tp[tp$Mode == g$Mode & tp$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
+        plotly::layout(
+          title = atc_titre("Répartition par type de prise —", selected_lib(), code),
+          barmode = "overlay",
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(tp$TickLabel)
+          ),
+          margin = list(l = 20, r = 20, t = 50, b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
+        )
+    })
+
+    # --- Barres horizontales des facteurs de mésusage --------------------------
+    # Comme dans l'onglet MEDOC_REG, DEUX barres par facteur : bordeaux = « par
+    # rapport au code ATC », orange = « par rapport à l'ensemble des cas » (voir
+    # facteur_values()). Tous les facteurs sont de niveau "detail".
+    # Conteneur du graphe facteur : renderUI injecte le plotlyOutput avec la
+    # bonne hauteur (facteur_height()), qui change selon l'état du dépliage.
+    output$plot_facteur_ui <- shiny::renderUI({
+      plotly::plotlyOutput(ns("plot_facteur"), height = facteur_height())
+    })
+
+    output$plot_facteur <- plotly::renderPlotly(
+      {
+        code <- selected_code()
+        fv <- facteur_plot_data()
+        if (is.null(code) || is.null(fv) || nrow(fv) == 0) {
+          return(plotly::plotly_empty())
+        }
+
+        # Couleurs officielles : bordeaux (molécule) / orange (ensemble des cas).
+        pal_mol <- age_colors()
+        pal_ens <- age_colors_ensemble()
+
+        col_vec <- ifelse(
+          fv$Mode == "molécule",
+          ifelse(fv$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+          ifelse(fv$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+        )
+        fv$Col <- col_vec
+
+        # Orientation "h" : plotly place la 1re catégorie du categoryarray en bas.
+        categoryarray <- rev(fv$Libelle)
+
+        # Libellé d'axe Y UNIQUE par paire : la barre « molécule » le porte, celle
+        # « ensemble des cas » (juste en dessous) n'en affiche pas.
+        fv$TickLabel <- fv$Libelle
+        fv$TickLabel[fv$Mode == "ensemble des cas"] <- ""
+
+        groups <- list(
+          list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+          list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+          list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+          list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+        )
+
+        p <- plotly::plot_ly()
+        for (g in groups) {
+          sub <- fv[fv$Mode == g$Mode & fv$Type == g$Type, ]
+          if (nrow(sub) == 0) {
+            next
+          }
+          p <- p %>%
+            plotly::add_trace(
+              type = "bar",
+              orientation = "h",
+              x = sub$Pct,
+              y = sub$Libelle,
+              text = paste0(round(sub$Pct, 1), " %"),
+              textposition = "outside",
+              cliponaxis = FALSE,
+              marker = list(color = sub$Col),
+              customdata = lapply(seq_len(nrow(sub)), function(i) {
+                c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+              }),
+              # textposition = "outside" : le texte des pourcentages n'est plus
+              # contraint par l'épaisseur des barres (fines surtout en mode déplié),
+              # il reste donc lisible et de grande taille dans les deux modes.
+              outsidetextfont = list(size = 17),
+              hovertemplate = paste0(
+                "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+                "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+              ),
+              name = g$Nom,
+              showlegend = TRUE
+            )
+        }
+
+        p %>%
+          plotly::layout(
+            title = atc_titre("Répartition par facteur —", selected_lib(), code),
+            barmode = "overlay",
+            xaxis = list(
+              title = "Pourcentage (%)",
+              range = c(0, 115),
+              ticksuffix = "%"
+            ),
+            yaxis = list(
+              title = "",
+              categoryorder = "array",
+              categoryarray = categoryarray,
+              type = "category",
+              automargin = TRUE,
+              tickfont = list(size = 11),
+              tickmode = "array",
+              tickvals = categoryarray,
+              ticktext = rev(fv$TickLabel)
+            ),
+            margin = list(l = 20, r = 45, t = 50, b = 20),
+            legend = list(
+              orientation = "h",
+              x = 0,
+              y = -0.12,
+              font = list(size = 11)
+            )
+          )
+      }
+    )
+
+    # --- Retour exposé (inoffensif en production) -----------------------------
+    # Permet à shiny::testServer de tester les réactives internes du module sans
+    # rien changer au comportement de l'application (le retour est ignoré par
+    # shiny::runApp).
+    list(
+      atc_df = atc_df,
+      lib_code_atc = lib_code_atc,
+      principaux_facteurs = principaux_facteurs,
+      selected_code = selected_code,
+      facteur_values = facteur_values,
+      facteur_plot_data = facteur_plot_data,
+      facteur_height = facteur_height
+    )
   })
 }
 
