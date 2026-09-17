@@ -66,6 +66,17 @@ ui <- page_navbar(
             actionButton("go_lib_code_atc", "Accéder aux caractéristiques des mésusages par code ATC",
                          class = "btn btn-primary btn-block")
           )
+        ),
+        column(
+          width = 6,
+          tags$div(
+            class = "shortcut-card",
+            icon("bullseye"),
+            h4("Focus IPP, Laxatif et Corticoïdes "),
+            p("Tableau des focus (Focus IPP, Focus Laxatif, Focus Corticoïdes) et statistiques associées."),
+            actionButton("go_focus", "Accéder aux focus IPP / Laxatif / Corticoïdes",
+                         class = "btn btn-primary btn-block")
+          )
         )
       )
     )
@@ -81,6 +92,12 @@ ui <- page_navbar(
     "LIB_CODE_ATC",
     value = "lib_code_atc",
     mod_lib_code_atc_ui("lib_code_atc")
+  ),
+
+  nav_panel(
+    "FOCUS_IPP_LAXA_CORTICO",
+    value = "focus_ipp_laxa_cortico",
+    mod_focus_ipp_laxa_cortico_ui("focus_ipp_laxa_cortico")
   )
 )
 
@@ -96,11 +113,19 @@ server <- function(input, output, session) {
     bslib::nav_select("main_navbar", selected = "lib_code_atc")
   })
 
+  # Raccourci de la page d'accueil : ouvre l'écran FOCUS_IPP_LAXA_CORTICO.
+  observeEvent(input$go_focus, {
+    bslib::nav_select("main_navbar", selected = "focus_ipp_laxa_cortico")
+  })
+
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
   mod_medoc_reg_server("medoc")
 
   # Le module LIB_CODE_ATC charge les données depuis data/LIB_CODE_ATC_OXOMEMAZINE.xlsx.
   mod_lib_code_atc_server("lib_code_atc")
+
+  # Le module FOCUS charge les données depuis data/FOCUS_IPP_LAXA_CORTICO.xlsx.
+  mod_focus_ipp_laxa_cortico_server("focus_ipp_laxa_cortico")
 }
 
 shiny::shinyApp(ui = ui, server = server)

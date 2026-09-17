@@ -88,6 +88,34 @@ read_lib_code_atc <- function(path = lib_code_atc_path()) {
   readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
 }
 
+#' Chemin complet vers le fichier Excel FOCUS_IPP_LAXA_CORTICO.
+#' @return Chemin absolu vers data/FOCUS_IPP_LAXA_CORTICO.xlsx.
+focus_ipp_laxa_cortico_path <- function() {
+  file.path(data_dir(), "FOCUS_IPP_LAXA_CORTICO.xlsx")
+}
+
+# --- Lecture FOCUS_IPP_LAXA_CORTICO --------------------------------------------
+# ' Importe le fichier data/FOCUS_IPP_LAXA_CORTICO.xlsx dans une dataframe.
+#'
+#' Comme pour MEDOC_REG.xlsx, ce fichier possède un onglet unique dont les deux
+#' premières lignes constituent des en-têtes imbriqués : on ignore donc la
+#' première ligne et on utilise la seconde comme noms de colonnes (skip = 1).
+#' La structure est analogue à celle de MEDOC_REG (mêmes indices de colonnes de
+#' données, aucune colonne supplémentaire) ; à la différence que la colonne B
+#' (index 2) contient le libellé du sous-périmètre (« Focus IPP (A02BC) »,
+#' « Focus Laxatif (A06A) », « Focus Corticoïdes », ainsi que « Total » et
+#' « Autre »/« Autres »), la colonne A (index 1) portant le périmètre
+#' (FOCUS_IPP, FOCUS_LAXA, FOCUS_CORTI).
+#'
+#' @return Une dataframe (tibble) issue de readxl::read_excel().
+#' @export
+read_focus_ipp_laxa_cortico <- function(path = focus_ipp_laxa_cortico_path()) {
+  if (!file.exists(path)) {
+    stop("Fichier Excel FOCUS_IPP_LAXA_CORTICO introuvable : ", path)
+  }
+  readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
+}
+
 # --- Lecture principaux_facteurs ----------------------------------------------
 #' Importe le fichier data/principaux_facteurs.xlsx dans une dataframe.
 #'
