@@ -1115,6 +1115,7 @@ mod_lib_code_atc_server <- function(id) {
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que la hiérarchie se lise de haut en bas.
+      av$Libelle <- wrap_libelle(av$Libelle)
       categoryarray <- rev(av$Libelle)
 
       # Libellé d'axe Y UNIQUE par paire de barres : pour chaque âge, la barre
@@ -1237,6 +1238,7 @@ mod_lib_code_atc_server <- function(id) {
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que les libellés se lisent de haut en bas.
+      ov$Libelle <- wrap_libelle(ov$Libelle)
       categoryarray <- rev(ov$Libelle)
 
       # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
@@ -1343,6 +1345,7 @@ mod_lib_code_atc_server <- function(id) {
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que la hiérarchie se lise de haut en bas.
+      tv$Libelle <- wrap_libelle(tv$Libelle)
       categoryarray <- rev(tv$Libelle)
 
       # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
@@ -1454,6 +1457,7 @@ mod_lib_code_atc_server <- function(id) {
       # Pour une orientation "h", plotly place la PREMIÈRE catégorie du
       # categoryarray en bas : on fournit donc l'ordre inverse de l'affichage
       # voulu pour que la hiérarchie se lise de haut en bas.
+      tp$Libelle <- wrap_libelle(tp$Libelle)
       categoryarray <- rev(tp$Libelle)
 
       # Libellé d'axe Y UNIQUE par paire de barres : la barre « molécule »
@@ -1559,6 +1563,7 @@ mod_lib_code_atc_server <- function(id) {
         fv$Col <- col_vec
 
         # Orientation "h" : plotly place la 1re catégorie du categoryarray en bas.
+        fv$Libelle <- wrap_libelle(fv$Libelle)
         categoryarray <- rev(fv$Libelle)
 
         # Libellé d'axe Y UNIQUE par paire : la barre « molécule » le porte, celle

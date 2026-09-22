@@ -116,6 +116,35 @@ read_focus_ipp_laxa_cortico <- function(path = focus_ipp_laxa_cortico_path()) {
   readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
 }
 
+#' Chemin complet vers le fichier Excel origine_du_mesusage.
+#' @return Chemin absolu vers data/origine_du_mesusage.xlsx.
+origine_mesusage_path <- function() {
+  file.path(data_dir(), "origine_du_mesusage.xlsx")
+}
+
+# --- Lecture origine_du_mesusage -----------------------------------------------
+#' Importe le fichier data/origine_du_mesusage.xlsx dans une dataframe.
+#'
+#' Comme pour MEDOC_REG.xlsx et FOCUS_IPP_LAXA_CORTICO.xlsx, ce fichier possède
+#' un onglet unique dont les deux premières lignes constituent des en-têtes
+#' imbriqués : on ignore donc la première ligne et on utilise la seconde comme
+#' noms de colonnes (skip = 1). La structure des colonnes de données est
+#' identique à celle de MEDOC_REG / FOCUS (mêmes indices) : genre (5-7),
+#' enceinte (8-10), âge (11, 13-20), origine (21-23), type de prise (24-30),
+#' type (40-50). La différence réside dans le contenu de la colonne B
+#' (index 2), qui porte ici le libellé de l'origine du mésusage
+#' (« Au moment de la prise du médicament (...) », ...), ainsi que
+#' « Total » pour la ligne de périmètre global.
+#'
+#' @return Une dataframe (tibble) issue de readxl::read_excel().
+#' @export
+read_origine_mesusage <- function(path = origine_mesusage_path()) {
+  if (!file.exists(path)) {
+    stop("Fichier Excel origine_du_mesusage introuvable : ", path)
+  }
+  readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
+}
+
 # --- Lecture principaux_facteurs ----------------------------------------------
 #' Importe le fichier data/principaux_facteurs.xlsx dans une dataframe.
 #'

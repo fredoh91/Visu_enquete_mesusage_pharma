@@ -77,6 +77,17 @@ ui <- page_navbar(
             actionButton("go_focus", "Accéder aux focus IPP / Laxatif / Corticoïdes",
                          class = "btn btn-primary btn-block")
           )
+        ),
+        column(
+          width = 6,
+          tags$div(
+            class = "shortcut-card",
+            icon("exclamation-circle"),
+            h4("Origine du mésusage "),
+            p("Tableau des origines du mésusage (prise, prescription, dispensation) et statistiques associées."),
+            actionButton("go_origine", "Accéder aux origines du mésusage",
+                         class = "btn btn-primary btn-block")
+          )
         )
       )
     )
@@ -98,6 +109,12 @@ ui <- page_navbar(
     "FOCUS_IPP_LAXA_CORTICO",
     value = "focus_ipp_laxa_cortico",
     mod_focus_ipp_laxa_cortico_ui("focus_ipp_laxa_cortico")
+  ),
+
+  nav_panel(
+    "ORIGINE MÉSUSAGE",
+    value = "origine_mesusage",
+    mod_origine_mesusage_ui("origine_mesusage")
   )
 )
 
@@ -118,6 +135,11 @@ server <- function(input, output, session) {
     bslib::nav_select("main_navbar", selected = "focus_ipp_laxa_cortico")
   })
 
+  # Raccourci de la page d'accueil : ouvre l'écran ORIGINE_MÉSUSAGE.
+  observeEvent(input$go_origine, {
+    bslib::nav_select("main_navbar", selected = "origine_mesusage")
+  })
+
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
   mod_medoc_reg_server("medoc")
 
@@ -126,6 +148,9 @@ server <- function(input, output, session) {
 
   # Le module FOCUS charge les données depuis data/FOCUS_IPP_LAXA_CORTICO.xlsx.
   mod_focus_ipp_laxa_cortico_server("focus_ipp_laxa_cortico")
+
+  # Le module ORIGINE MÉSUSAGE charge les données depuis data/origine_du_mesusage.xlsx.
+  mod_origine_mesusage_server("origine_mesusage")
 }
 
 shiny::shinyApp(ui = ui, server = server)
