@@ -88,6 +88,17 @@ ui <- page_navbar(
             actionButton("go_origine", "Accéder aux origines du mésusage",
                          class = "btn btn-primary btn-block")
           )
+        ),
+        column(
+          width = 6,
+          tags$div(
+            class = "shortcut-card",
+            icon("layer-group"),
+            h4("Classe ATC SOC "),
+            p("Tableau des libellés SOC (colonne B) et statistiques associées, sans le graphique des facteurs."),
+            actionButton("go_classe_atc_soc", "Accéder aux classes ATC SOC",
+                         class = "btn btn-primary btn-block")
+          )
         )
       )
     )
@@ -115,6 +126,12 @@ ui <- page_navbar(
     "ORIGINE MÉSUSAGE",
     value = "origine_mesusage",
     mod_origine_mesusage_ui("origine_mesusage")
+  ),
+
+  nav_panel(
+    "CLASSE ATC SOC",
+    value = "classe_atc_soc",
+    mod_classe_atc_soc_ui("classe_atc_soc")
   )
 )
 
@@ -140,6 +157,11 @@ server <- function(input, output, session) {
     bslib::nav_select("main_navbar", selected = "origine_mesusage")
   })
 
+  # Raccourci de la page d'accueil : ouvre l'écran CLASSE ATC SOC.
+  observeEvent(input$go_classe_atc_soc, {
+    bslib::nav_select("main_navbar", selected = "classe_atc_soc")
+  })
+
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
   mod_medoc_reg_server("medoc")
 
@@ -151,6 +173,9 @@ server <- function(input, output, session) {
 
   # Le module ORIGINE MÉSUSAGE charge les données depuis data/origine_du_mesusage.xlsx.
   mod_origine_mesusage_server("origine_mesusage")
+
+  # Le module CLASSE ATC SOC charge les données depuis data/CLASSE_ATC_SOC.xlsx.
+  mod_classe_atc_soc_server("classe_atc_soc")
 }
 
 shiny::shinyApp(ui = ui, server = server)
