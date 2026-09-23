@@ -99,6 +99,17 @@ ui <- page_navbar(
             actionButton("go_classe_atc_soc", "Accéder aux classes ATC SOC",
                          class = "btn btn-primary btn-block")
           )
+        ),
+        column(
+          width = 6,
+          tags$div(
+            class = "shortcut-card",
+            icon("user"),
+            h4("âge patient(e) "),
+            p("Tableau des tranches d'âge (colonne B) et statistiques associées, sans le graphique des âges."),
+            actionButton("go_age_patient", "Accéder aux âges patient(e)",
+                         class = "btn btn-primary btn-block")
+          )
         )
       )
     )
@@ -132,6 +143,12 @@ ui <- page_navbar(
     "CLASSE ATC SOC",
     value = "classe_atc_soc",
     mod_classe_atc_soc_ui("classe_atc_soc")
+  ),
+
+  nav_panel(
+    "AGE PATIENT(E)",
+    value = "age_patient",
+    mod_age_patient_ui("age_patient")
   )
 )
 
@@ -162,6 +179,11 @@ server <- function(input, output, session) {
     bslib::nav_select("main_navbar", selected = "classe_atc_soc")
   })
 
+  # Raccourci de la page d'accueil : ouvre l'écran AGE PATIENT(E).
+  observeEvent(input$go_age_patient, {
+    bslib::nav_select("main_navbar", selected = "age_patient")
+  })
+
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
   mod_medoc_reg_server("medoc")
 
@@ -176,6 +198,9 @@ server <- function(input, output, session) {
 
   # Le module CLASSE ATC SOC charge les données depuis data/CLASSE_ATC_SOC.xlsx.
   mod_classe_atc_soc_server("classe_atc_soc")
+
+  # Le module AGE PATIENT charge les données depuis data/Age_patient.xlsx.
+  mod_age_patient_server("age_patient")
 }
 
 shiny::shinyApp(ui = ui, server = server)

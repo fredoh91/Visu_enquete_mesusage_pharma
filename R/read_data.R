@@ -144,6 +144,35 @@ read_origine_mesusage <- function(path = origine_mesusage_path()) {
   }
   readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
 }
+
+#' Chemin complet vers le fichier Excel Age_patient.
+#' @return Chemin absolu vers data/Age_patient.xlsx.
+age_patient_path <- function() {
+  file.path(data_dir(), "Age_patient.xlsx")
+}
+
+# --- Lecture Age_patient -------------------------------------------------------
+#' Importe le fichier data/Age_patient.xlsx dans une dataframe.
+#'
+#' Comme pour MEDOC_REG.xlsx et FOCUS_IPP_LAXA_CORTICO.xlsx, ce fichier possède
+#' un onglet unique dont les deux premières lignes constituent des en-têtes
+#' imbriqués : on ignore donc la première ligne et on utilise la seconde comme
+#' noms de colonnes (skip = 1). La structure des colonnes de données est
+#' identique à celle de MEDOC_REG / FOCUS (mêmes indices) : genre (5-7),
+#' enceinte (8-10), âge (11, 13-20), origine (21-23), type de prise (24-30),
+#' type (40-50). La différence réside dans le contenu de la colonne B
+#' (index 2), qui porte ici la tranche d'âge (« ST ENFANTS, ADOLESCENTS »,
+#' « Entre 2 et 11 ans (enfant) », « ST ADULTES », ...), ainsi que « Total »
+#' pour la ligne de périmètre global.
+#'
+#' @return Une dataframe (tibble) issue de readxl::read_excel().
+#' @export
+read_age_patient <- function(path = age_patient_path()) {
+  if (!file.exists(path)) {
+    stop("Fichier Excel Age_patient introuvable : ", path)
+  }
+  readxl::read_excel(path, sheet = 1L, skip = 1L, .name_repair = "unique")
+}
 #' Chemin complet vers le fichier Excel CLASSE_ATC_SOC.
 #' @return Chemin absolu vers data/CLASSE_ATC_SOC.xlsx.
 classe_atc_soc_path <- function() {
