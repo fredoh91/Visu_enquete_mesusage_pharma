@@ -144,7 +144,7 @@ mod_focus_ipp_laxa_cortico_ui <- function(id) {
 # --- Server du module ---------------------------------------------------------
 #' Server du module Focus IPP / Laxatif / Corticoïdes.
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_focus_ipp_laxa_cortico_server <- function(id) {
+mod_focus_ipp_laxa_cortico_server <- function(id, theme) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -869,7 +869,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
     })
 
     # --- Camembert 1 : genre des patients (partie basse) ----------------------
-    output$plot_genre <- plotly::renderPlotly({
+    output$plot_genre <- render_plotly_theme(theme, {
       focus <- selected_focus()
       gv <- genre_values()
       if (is.null(focus) || is.null(gv) || nrow(gv) == 0) {
@@ -906,7 +906,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
     })
 
     # --- Camembert 2 : données "enceinte" (partie basse) ----------------------
-    output$plot_enceinte <- plotly::renderPlotly({
+    output$plot_enceinte <- render_plotly_theme(theme, {
       focus <- selected_focus()
       ev <- enceinte_values()
       if (is.null(focus) || is.null(ev) || nrow(ev) == 0) {
@@ -946,7 +946,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
     # --- Barres horizontales des âges (partie basse) ---------------------------
     # DEUX barres par tranche d'âge : bordeaux = « par rapport au focus »,
     # orange = « par rapport à l'ensemble des cas » (voir age_values()).
-    output$plot_age <- plotly::renderPlotly({
+    output$plot_age <- render_plotly_theme(theme, {
       focus <- selected_focus()
       av <- age_values()
       if (is.null(focus) || is.null(av) || nrow(av) == 0) {
@@ -1038,7 +1038,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
 
     # --- Barres horizontales de l'origine du mésusage --------------------------
     # DEUX barres par modalité d'origine (bordeaux = focus, orange = ensemble).
-    output$plot_origine <- plotly::renderPlotly({
+    output$plot_origine <- render_plotly_theme(theme, {
       focus <- selected_focus()
       ov <- origine_values()
       if (is.null(focus) || is.null(ov) || nrow(ov) == 0) {
@@ -1130,7 +1130,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
 
     # --- Barres horizontales du type de mésusage -------------------------------
     # DEUX barres par libellé de type (bordeaux = focus, orange = ensemble).
-    output$plot_type <- plotly::renderPlotly({
+    output$plot_type <- render_plotly_theme(theme, {
       focus <- selected_focus()
       tv <- type_values()
       if (is.null(focus) || is.null(tv) || nrow(tv) == 0) {
@@ -1222,7 +1222,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
 
     # --- Barres horizontales du type de prise ----------------------------------
     # DEUX barres par libellé (bordeaux = focus, orange = ensemble des cas).
-    output$plot_type_prise <- plotly::renderPlotly({
+    output$plot_type_prise <- render_plotly_theme(theme, {
       focus <- selected_focus()
       tp <- type_prise_values()
       if (is.null(focus) || is.null(tp) || nrow(tp) == 0) {
@@ -1321,7 +1321,7 @@ mod_focus_ipp_laxa_cortico_server <- function(id) {
       plotly::plotlyOutput(ns("plot_facteur"), height = facteur_height())
     })
 
-    output$plot_facteur <- plotly::renderPlotly(
+    output$plot_facteur <- render_plotly_theme(theme, 
       {
         focus <- selected_focus()
         fv <- facteur_plot_data()

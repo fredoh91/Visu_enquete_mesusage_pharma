@@ -18,20 +18,59 @@ suppressPackageStartupMessages({
   library(shinycssloaders)
 })
 
+# --- Thèmes -------------------------------------------------------------------
+# Deux thèmes sont définis pour la bascule clair / sombre :
+#   * theme_clair  : bootswatch "flatly", primary vert turquoise (identité d'origine).
+#   * theme_sombre : bootswatch "darkly", primary orange, secondary marron foncé.
+theme_clair <- bs_theme(
+  version    = 5,
+  bootswatch = "flatly",
+  primary    = "#18bc9c",
+  secondary  = "#3C1400"
+)
+
+theme_sombre <- bs_theme(
+  version    = 5,
+  bootswatch = "darkly",
+  primary    = "#B64000",
+  secondary  = "#3C1400"
+)
+
 # --- Interface utilisateur ----------------------------------------------------
 ui <- page_navbar(
   # Pas de titre global : les onglets sont ainsi plus visibles et détachés.
   # (un éventuel en-tête de marque peut être réintroduit si besoin)
   title = NULL,
   id = "main_navbar",
-  theme = bs_theme(
-    version    = 5,
-    bootswatch = "flatly",
-    primary    = "#18bc9c"
-  ),
-  # Feuille de style personnalisée
+  # Le thème par défaut est le clair ; il est basculé dynamiquement côté serveur
+  # (session$setCurrentTheme) selon la préférence mémorisée / le bouton.
+  theme = theme_clair,
+  # Feuille de style personnalisée + script de bascule de thème
   header = tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")
+    tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
+    tags$script(src = "theme-toggle.js"),
+    # Application immédiate du thème mémorisé (évite un flash du mauvais thème)
+    # puis transmission de la valeur initiale au serveur (input$theme_init).
+    tags$script(HTML(
+      "(function(){
+         var safe = function(){
+           try {
+             var v = window.localStorage.getItem('app-theme');
+             return (v === 'sombre' || v === 'clair') ? v : 'clair';
+           } catch(e) { return 'clair'; }
+         };
+         // Convertit la valeur métier (sombre/clair) en valeur Bootstrap
+         // standard (dark/light) pour l'attribut data-bs-theme.
+         document.documentElement.setAttribute(
+           'data-bs-theme', safe() === 'sombre' ? 'dark' : 'light'
+         );
+         if (window.Shiny) {
+           Shiny.addCustomMessageHandler('ask-initial-theme', function(m){
+             Shiny.setInputValue('theme_init', safe(), { priority: 'event' });
+           });
+         }
+       })();"
+    ))
   ),
 
   nav_panel(
@@ -149,11 +188,65 @@ ui <- page_navbar(
     "AGE PATIENT(E)",
     value = "age_patient",
     mod_age_patient_ui("age_patient")
+  ),
+
+  # Bouton de bascule clair / sombre, poussé tout à droite de la ligne d'onglets.
+  bslib::nav_spacer(),
+  bslib::nav_item(
+    class = "theme-toggle-wrap",
+    actionButton(
+      "theme_toggle",
+      label = tags$span(
+        icon("sun"), " ",
+        tags$span(id = "theme_toggle_label", "Clair")
+      ),
+      class = "btn theme-toggle-btn"
+    )
   )
 )
 
 # --- Serveur ------------------------------------------------------------------
 server <- function(input, output, session) {
+  # --- Gestion du thème (clair / sombre) ------------------------------------
+  # Valeur réactive partagée par toute l'application (et les modules) :
+  #   * "clair"  : thème clair (défaut, bootswatch flatly) ;
+  #   * "sombre" : thème sombre (bootswatch darkly).
+  theme_actif <- reactiveVal("clair")
+
+  # Applique un thème donné : met à jour la réactive, le thème bslib (session),
+  # l'attribut HTML data-bs-theme (via le script JS) et le libellé du bouton.
+  appliquer_theme <- function(th) {
+    th <- if (identical(th, "sombre")) "sombre" else "clair"
+    theme_actif(th)
+    session$setCurrentTheme(if (th == "sombre") theme_sombre else theme_clair)
+    session$sendCustomMessage("apply-theme", th)
+    session$sendCustomMessage("write-theme", th)
+    # Libellé du bouton reflétant le thème actif.
+    icon_name <- if (th == "sombre") "moon" else "sun"
+    label_txt <- if (th == "sombre") "Sombre" else "Clair"
+    shiny::updateActionButton(
+      session, "theme_toggle",
+      label = tags$span(icon(icon_name), " ",
+                        tags$span(id = "theme_toggle_label", label_txt))
+    )
+  }
+
+  # À la connexion, on interroge le script JS pour la préférence mémorisée.
+  session$onFlushed(function() {
+    session$sendCustomMessage("ask-initial-theme", "")
+  }, once = TRUE)
+
+  # Applique la préférence mémorisée dès qu'elle est reçue (défaut : clair).
+  observeEvent(input$theme_init, {
+    appliquer_theme(input$theme_init)
+  }, ignoreNULL = TRUE, once = TRUE)
+
+  # Bascule manuelle via le bouton (tout à droite des onglets).
+  observeEvent(input$theme_toggle, {
+    nouvel_etat <- if (theme_actif() == "sombre") "clair" else "sombre"
+    appliquer_theme(nouvel_etat)
+  })
+
   # Raccourci de la page d'accueil : ouvre l'écran MEDOC_REG.
   observeEvent(input$go_medoc, {
     bslib::nav_select("main_navbar", selected = "medoc")
@@ -185,22 +278,22 @@ server <- function(input, output, session) {
   })
 
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
-  mod_medoc_reg_server("medoc")
+  mod_medoc_reg_server("medoc", theme = theme_actif)
 
   # Le module LIB_CODE_ATC charge les données depuis data/LIB_CODE_ATC_OXOMEMAZINE.xlsx.
-  mod_lib_code_atc_server("lib_code_atc")
+  mod_lib_code_atc_server("lib_code_atc", theme = theme_actif)
 
   # Le module FOCUS charge les données depuis data/FOCUS_IPP_LAXA_CORTICO.xlsx.
-  mod_focus_ipp_laxa_cortico_server("focus_ipp_laxa_cortico")
+  mod_focus_ipp_laxa_cortico_server("focus_ipp_laxa_cortico", theme = theme_actif)
 
   # Le module ORIGINE MÉSUSAGE charge les données depuis data/origine_du_mesusage.xlsx.
-  mod_origine_mesusage_server("origine_mesusage")
+  mod_origine_mesusage_server("origine_mesusage", theme = theme_actif)
 
   # Le module CLASSE ATC SOC charge les données depuis data/CLASSE_ATC_SOC.xlsx.
-  mod_classe_atc_soc_server("classe_atc_soc")
+  mod_classe_atc_soc_server("classe_atc_soc", theme = theme_actif)
 
   # Le module AGE PATIENT charge les données depuis data/Age_patient.xlsx.
-  mod_age_patient_server("age_patient")
+  mod_age_patient_server("age_patient", theme = theme_actif)
 }
 
 shiny::shinyApp(ui = ui, server = server)

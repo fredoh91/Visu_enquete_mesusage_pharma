@@ -127,7 +127,7 @@ mod_classe_atc_soc_ui <- function(id) {
 # --- Server du module ---------------------------------------------------------
 #' Server du module CLASSE ATC SOC.
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_classe_atc_soc_server <- function(id) {
+mod_classe_atc_soc_server <- function(id, theme) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -697,7 +697,7 @@ mod_classe_atc_soc_server <- function(id) {
     })
 
     # --- Camembert 1 : genre des patients (partie basse) ----------------------
-    output$plot_genre <- plotly::renderPlotly({
+    output$plot_genre <- render_plotly_theme(theme, {
       soc <- selected_soc()
       titre <- wrap_titre(paste("Répartition par genre —", soc))
       gv <- genre_values()
@@ -735,7 +735,7 @@ mod_classe_atc_soc_server <- function(id) {
     })
 
     # --- Camembert 2 : données "enceinte" (partie basse) ----------------------
-    output$plot_enceinte <- plotly::renderPlotly({
+    output$plot_enceinte <- render_plotly_theme(theme, {
       soc <- selected_soc()
       titre <- wrap_titre(paste("Répartition des données \"enceinte\" —", soc))
       ev <- enceinte_values()
@@ -776,7 +776,7 @@ mod_classe_atc_soc_server <- function(id) {
     # --- Barres horizontales des âges (partie basse) ---------------------------
     # DEUX barres par tranche d'âge : bordeaux = « par rapport au SOC »,
     # orange = « par rapport à l'ensemble des cas » (voir age_values()).
-    output$plot_age <- plotly::renderPlotly({
+    output$plot_age <- render_plotly_theme(theme, {
       soc <- selected_soc()
       titre <- wrap_titre(paste("Répartition par âge —", soc))
       av <- age_values()
@@ -870,7 +870,7 @@ mod_classe_atc_soc_server <- function(id) {
 
     # --- Barres horizontales de l'origine du mésusage --------------------------
     # DEUX barres par modalité d'origine (bordeaux = SOC, orange = ensemble).
-    output$plot_origine <- plotly::renderPlotly({
+    output$plot_origine <- render_plotly_theme(theme, {
       soc <- selected_soc()
       titre <- wrap_titre(paste("Répartition par origine —", soc))
       ov <- origine_values()
@@ -964,7 +964,7 @@ mod_classe_atc_soc_server <- function(id) {
 
     # --- Barres horizontales du type de mésusage -------------------------------
     # DEUX barres par libellé de type (bordeaux = SOC, orange = ensemble).
-    output$plot_type <- plotly::renderPlotly({
+    output$plot_type <- render_plotly_theme(theme, {
       soc <- selected_soc()
       titre <- wrap_titre(paste("Répartition par type —", soc))
       tv <- type_values()
@@ -1058,7 +1058,7 @@ mod_classe_atc_soc_server <- function(id) {
 
     # --- Barres horizontales du type de prise -----------------------------------
     # DEUX barres par libellé de type de prise (bordeaux = SOC, orange = ensemble).
-    output$plot_type_prise <- plotly::renderPlotly({
+    output$plot_type_prise <- render_plotly_theme(theme, {
       soc <- selected_soc()
       titre <- wrap_titre(paste("Répartition par type de prise —", soc))
       tpv <- type_prise_values()

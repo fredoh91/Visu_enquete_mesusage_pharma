@@ -159,7 +159,7 @@ mod_origine_mesusage_ui <- function(id) {
 # --- Server du module ---------------------------------------------------------
 #' Server du module Origine du mésusage.
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_origine_mesusage_server <- function(id) {
+mod_origine_mesusage_server <- function(id, theme) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -826,7 +826,7 @@ mod_origine_mesusage_server <- function(id) {
     })
 
     # --- Camembert 1 : genre des patients (partie basse) ----------------------
-    output$plot_genre <- plotly::renderPlotly({
+    output$plot_genre <- render_plotly_theme(theme, {
       origine <- selected_origine_court()
       titre <- wrap_titre(paste("Répartition par genre —", origine))
       gv <- genre_values()
@@ -864,7 +864,7 @@ mod_origine_mesusage_server <- function(id) {
     })
 
     # --- Camembert 2 : données "enceinte" (partie basse) ----------------------
-    output$plot_enceinte <- plotly::renderPlotly({
+    output$plot_enceinte <- render_plotly_theme(theme, {
       origine <- selected_origine_court()
       titre <- wrap_titre(paste("Répartition des données \"enceinte\" —", origine))
       ev <- enceinte_values()
@@ -905,7 +905,7 @@ mod_origine_mesusage_server <- function(id) {
     # --- Barres horizontales des âges (partie basse) ---------------------------
     # DEUX barres par tranche d'âge : bordeaux = « par rapport à l'origine »,
     # orange = « par rapport à l'ensemble des cas » (voir age_values()).
-    output$plot_age <- plotly::renderPlotly({
+    output$plot_age <- render_plotly_theme(theme, {
       origine <- selected_origine_court()
       titre <- wrap_titre(paste("Répartition par âge —", origine))
       av <- age_values()
@@ -998,7 +998,7 @@ mod_origine_mesusage_server <- function(id) {
 
     # --- Barres horizontales du type de mésusage -------------------------------
     # DEUX barres par libellé de type (bordeaux = origine, orange = ensemble).
-    output$plot_type <- plotly::renderPlotly({
+    output$plot_type <- render_plotly_theme(theme, {
       origine <- selected_origine_court()
       titre <- wrap_titre(paste("Répartition par type —", origine))
       tv <- type_values()
@@ -1091,7 +1091,7 @@ mod_origine_mesusage_server <- function(id) {
 
     # --- Barres horizontales du type de prise ----------------------------------
     # DEUX barres par libellé (bordeaux = origine, orange = ensemble des cas).
-    output$plot_type_prise <- plotly::renderPlotly({
+    output$plot_type_prise <- render_plotly_theme(theme, {
       origine <- selected_origine_court()
       titre <- wrap_titre(paste("Répartition par type de prise —", origine))
       tp <- type_prise_values()
@@ -1191,7 +1191,7 @@ mod_origine_mesusage_server <- function(id) {
       plotly::plotlyOutput(ns("plot_facteur"), height = facteur_height())
     })
 
-    output$plot_facteur <- plotly::renderPlotly(
+    output$plot_facteur <- render_plotly_theme(theme, 
       {
         origine <- selected_origine_court()
         titre <- wrap_titre(paste("Répartition par facteur —", origine))

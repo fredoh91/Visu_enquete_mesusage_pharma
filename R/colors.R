@@ -226,3 +226,146 @@ titre_margin_top <- function(x, base = 50L, par_ligne = 20L) {
   n <- lengths(strsplit(as.character(x), "<br>", fixed = TRUE))
   base + (pmax(n, 1L) - 1L) * par_ligne
 }
+
+# ============================================================================
+# Couleurs d'identité de l'application (primary / secondary)
+# ============================================================================
+# Ces couleurs correspondent aux variables Bootstrap `--bs-primary` et
+# `--bs-secondary` définies dans app.R via bs_theme(). Elles sont reflétées ici
+# pour être utilisables côté R / Plotly (qui ne lisent pas les variables CSS).
+
+#' Couleur « primary » de l'application (reflète `--bs-primary`).
+#' @export
+primary_color <- function() {
+  "#18bc9c"   # vert turquoise (thème clair) — voir app.R
+}
+
+#' Couleur « secondary » de l'application (reflète `--bs-secondary`).
+#' @export
+secondary_color <- function() {
+  "#3C1400"   # marron très foncé — voir app.R
+}
+
+# ============================================================================
+# Couleurs du thème (clair / sombre) pour les graphiques Plotly
+# ============================================================================
+# Plotly dessine ses graphiques dans un canvas (SVG) : il ne lit ni les
+# variables CSS du thème Bootstrap ni le thème bslib. Il faut donc lui fournir
+# explicitement les fonds, la couleur du texte et celle de la grille/des axes,
+# et ce pour chacun des deux modes (clair / sombre) de l'application.
+#
+# La bascule de thème est pilotée via la valeur réactive `theme_courant()`
+# définie dans app.R (valeurs possibles : "clair" / "sombre"). Chaque
+# renderPlotly en dépend pour être re-rendu à chaud, puis applique ces couleurs
+# via apply_plotly_theme().
+
+#' Palette thème (fond, texte, grille) pour un graphique Plotly.
+#'
+#' Renvoie une liste nommée décrivant l'habillage Plotly pour le mode demandé :
+#'   * `bg`    : fond de la carte (paper_bgcolor) ;
+#'   * `bgplot`: fond de la zone de tracé (plot_bgcolor) ;
+#'   * `text`  : couleur du texte/des labélisations (font) ;
+#'   * `grid`  : couleur de la grille et des axes.
+#'
+#' @param theme "clair" ou "sombre".
+#' @return Une liste nommée.
+#' @export
+plotly_theme_colors <- function(theme = c("clair", "sombre")) {
+  theme <- match.arg(theme)
+  if (identical(theme, "sombre")) {
+    list(
+      bg     = "#303030",   # var(--bs-secondary-bg) — fond carte
+      bgplot = "#303030",   # même fond pour la zone de tracé
+      text   = "#ffffff",   # var(--bs-body-color)
+      grid   = "#444444"    # var(--bs-border-color)
+    )
+  } else {
+    list(
+      bg     = "#ffffff",   # fond carte (thème clair)
+      bgplot = "#ffffff",
+      text   = NULL,        # garde la couleur de police par défaut de plotly
+      grid   = "#e3e8ec"    # grille discrète (proche du défaut plotly)
+    )
+  }
+}
+
+#' Applique l'habillage du thème (clair/sombre) à un graphique Plotly.
+#'
+#' Ajoute (ou écrase) sur un graphique déjà construit : le fond de la carte
+#' (`paper_bgcolor`), le fond de la zone de tracé (`plot_bgcolor`), la couleur
+#' du texte global (`font`), et la couleur de la grille / des axes. À utiliser en
+#' dernier dans chaque `renderPlotly` pour garantir un rendu cohérent avec le
+#' thème actif.
+#'
+#' @param p Un objet plotly (éventuellement NULL pour un graphique vide).
+#' @param theme "clair" ou "sombre".
+#' @return L'objet plotly habillé, ou `p` inchangé s'il est NULL.
+#' @export
+apply_plotly_theme <- function(p, theme = c("clair", "sombre")) {
+  if (is.null(p)) {
+    return(p)
+  }
+  theme <- match.arg(theme)
+  cols  <- plotly_theme_colors(theme)
+
+  args <- list(
+    paper_bgcolor = cols$bg,
+    plot_bgcolor  = cols$bgplot,
+    xaxis = list(
+      gridcolor     = cols$grid,
+      zerolinecolor = cols$grid,
+      tickcolor     = cols$grid
+    ),
+    yaxis = list(
+      gridcolor     = cols$grid,
+      zerolinecolor = cols$grid,
+      tickcolor     = cols$grid
+    )
+  )
+  # On ne force la couleur de police que si elle est définie (mode sombre) afin
+  # de préserver exactement le rendu par défaut du thème clair (notamment la
+  # couleur des étiquettes "inside" des camemberts).
+  if (!is.null(cols$text)) {
+    args$font <- list(color = cols$text)
+  }
+
+  do.call(plotly::layout, c(list(p), args))
+}
+
+#' Construit un `renderPlotly` appliquant automatiquement le thème actif.
+#'
+#' Remplace `plotly::renderPlotly({ ... })` : l'expression `expr` (le corps du
+#' render) est simplement évaluée, puis le graphique obtenu est habillé avec
+#' [apply_plotly_theme()] selon la valeur réactive `theme` (arguments "clair" /
+#' "sombre" pilotés par la bascule de thème).
+#'
+#' Grâce à ce wrapper, **il n'est pas nécessaire** de réécrire chacun des
+#' `plotly::layout(...)` des modules : l'habillage du thème (fonds, texte,
+#' grille) est appliqué *après* la construction, sur le résultat final.
+#'
+#' L'expression est évaluée dans l'environnement de l'appelant (le module), ce
+#' qui laisse tous les objets réactifs locaux (dataframes, valeurs sélectionnées,
+#' etc.) accessibles comme dans un `renderPlotly` classique. La dépendance à
+#' `theme()` force le re-rendu du graphique à chaque bascule de thème.
+#'
+#' @param theme Une valeur réactive (appelable) renvoyant "clair" ou "sombre".
+#' @param expr L'expression du corps du `renderPlotly` (non évaluée).
+#' @param env Environnement dans lequel évaluer `expr` (par défaut : l'environnement
+#'   de l'appelant, c.-à-d. la fonction serveur du module). À ne pas préciser.
+#' @return Un objet `shiny.render.function` (renderPlotly).
+#' @export
+render_plotly_theme <- function(theme, expr, env = parent.frame()) {
+  expr <- substitute(expr)
+  # Important : forcer immédiatement l'évaluation de `parent.frame()` afin de
+  # capturer l'environnement du module au moment de l'appel. Sans `force()`,
+  # la promesse n'est évaluée qu'à l'exécution du render (bien plus tard), où
+  # `parent.frame()` renverrait alors le contexte d'exécution de Shiny et non
+  # l'environnement du module (d'où « objet/fonction introuvable » pour les
+  # réactives locales comme `selected_age_court`).
+  env <- force(env)
+  plotly::renderPlotly({
+    th <- theme()
+    p  <- eval(expr, envir = env)
+    apply_plotly_theme(p, th)
+  })
+}

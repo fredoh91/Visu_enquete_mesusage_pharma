@@ -8,6 +8,12 @@ body {
   background-color: #f5f7fa;
 }
 
+/* Corps de page — mode sombre (bootswatch "darkly") */
+[data-bs-theme="dark"] body {
+  background-color: #222222;
+  color: #ffffff;
+}
+
 /* ----------------------------------------------------------------------------
    Navbar : onglets type classeur (comme Excel), version soignée.
    ---------------------------------------------------------------------------- */
@@ -27,6 +33,13 @@ body {
   box-shadow: 0 1px 3px rgba(16, 42, 67, 0.08);
 }
 
+/* Navbar — mode sombre */
+[data-bs-theme="dark"] .navbar {
+  background-color: #222222 !important;
+  --bslib-navbar-light-bg: #222222;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 /* Rangée des onglets : fine ligne basse qui accueille les feuilles. */
 .navbar .navbar-collapse > .navbar-nav {
   gap: 0.1rem;
@@ -37,6 +50,12 @@ body {
   background-color: #d9eae2;
   border-bottom: 1px solid #c3d8cd;
   border-radius: 8px 8px 0 0;
+}
+
+/* Rangée des onglets — mode sombre */
+[data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav {
+  background-color: #2a2a2a;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 /* --- Onglet de base (feuille inactive) ----------------------------------- */
@@ -96,6 +115,70 @@ body {
   background: #18bc9c;
 }
 
+/* --- Onglets — mode sombre ------------------------------------------------ */
+[data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav .nav-link {
+  background: linear-gradient(to bottom, #3a3a3a 0%, #2d2d2d 100%) !important;
+  color: #adb5bd !important;
+  border-color: #3f3f3f;
+  border-bottom: none;
+}
+
+[data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav .nav-link:hover {
+  background: linear-gradient(to bottom, #474747 0%, #383838 100%) !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav .nav-link.active {
+  /* Onglet actif dans les tonalités orange de la couleur primary #B64000. */
+  background: linear-gradient(to bottom, #B64000 0%, #8a2f00 100%) !important;
+  color: #ffffff !important;
+  border-color: #a63a00 !important;
+  border-bottom: none;
+  box-shadow: 0 -3px 6px rgba(0, 0, 0, 0.35);
+}
+
+[data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav .nav-link.active::before {
+  background: #ff8c3b;
+}
+
+/* --- Bouton de bascule de thème (clair / sombre), tout à droite ----------- */
+.theme-toggle-wrap {
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+  padding-bottom: 0.4rem;
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+/* Bouton — mode clair */
+[data-bs-theme="light"] .theme-toggle-btn {
+  background-color: #ffffff;
+  border: 1px solid #cfd8e0;
+  color: #2c3e50;
+}
+[data-bs-theme="light"] .theme-toggle-btn:hover {
+  background-color: #f1f4f6;
+}
+
+/* Bouton — mode sombre */
+[data-bs-theme="dark"] .theme-toggle-btn {
+  background-color: #3a3a3a;
+  border: 1px solid #4a4a4a;
+  color: #ffffff;
+}
+[data-bs-theme="dark"] .theme-toggle-btn:hover {
+  background-color: #474747;
+}
+
 /* Textes de la barre : espacement du contenu */
 .navbar .navbar-collapse {
   align-items: flex-end;
@@ -129,6 +212,20 @@ body {
   }
   .navbar .navbar-collapse > .navbar-nav .nav-link.active::before {
     display: none;
+  }
+
+  /* Variante mobile — mode sombre */
+  [data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav .nav-link {
+    background: #2d2d2d !important;
+    border: 1px solid #3f3f3f;
+  }
+  [data-bs-theme="dark"] .navbar .navbar-collapse > .navbar-nav .nav-link.active {
+    background: #8a2f00 !important;
+    color: #ffffff !important;
+  }
+  [data-bs-theme="dark"] .theme-toggle-wrap {
+    padding-left: 0;
+    padding-bottom: 0.25rem;
   }
 }
 
@@ -175,6 +272,18 @@ body {
   width: 100%;
 }
 
+/* Raccourcis de la page d'accueil — mode sombre */
+[data-bs-theme="dark"] .shortcut-card {
+  background-color: #303030;
+  border-color: #3f3f3f;
+}
+[data-bs-theme="dark"] .shortcut-card h4 {
+  color: #ffffff;
+}
+[data-bs-theme="dark"] .shortcut-card p {
+  color: #adb5bd;
+}
+
 /* Bloc du message de test (validation étape 1) */
 .message-test {
   margin: 24px 0;
@@ -189,10 +298,23 @@ body {
   color: #145a32;
 }
 
+/* Message de test — mode sombre */
+[data-bs-theme="dark"] .message-test {
+  background-color: #2a3a33;
+}
+[data-bs-theme="dark"] .message-test h3 {
+  color: #7fd1b9;
+}
+
 /* Titre des cartes */
 .card-header {
   font-weight: 600;
   color: #2c3e50;
+}
+
+/* Titre des cartes — mode sombre */
+[data-bs-theme="dark"] .card-header {
+  color: #ffffff;
 }
 
 /* Tableau de données */
@@ -204,6 +326,37 @@ table.dataTable thead th {
 
 table.dataTable tbody tr:hover {
   background-color: #ecf0f1;
+}
+
+/* Tableaux de données — mode sombre */
+[data-bs-theme="dark"] table.dataTable thead th {
+  background-color: #1f1f1f;
+  color: #ffffff;
+}
+[data-bs-theme="dark"] table.dataTable {
+  background-color: #303030;
+  color: #e6e6e6;
+}
+[data-bs-theme="dark"] table.dataTable tbody tr {
+  background-color: #2b2b2b;
+  color: #e6e6e6;
+}
+[data-bs-theme="dark"] table.dataTable tbody tr:nth-child(even) {
+  background-color: #303030;
+}
+[data-bs-theme="dark"] table.dataTable tbody tr:hover {
+  background-color: #3a3a3a;
+}
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter input,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_length select {
+  background-color: #2b2b2b;
+  color: #e6e6e6;
+  border: 1px solid #4a4a4a;
+}
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_info,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_length,
+[data-bs-theme="dark"] .dataTables_wrapper .dataTables_filter label {
+  color: #adb5bd;
 }
 
 /* ----------------------------------------------------------------------------
@@ -221,6 +374,16 @@ table.dataTable tbody tr.selected:hover {
 table.dataTable tbody tr.selected td {
   color: #0e6251;
   font-weight: 600;
+}
+
+/* Ligne sélectionnée — mode sombre (tons orange de la couleur primary) */
+[data-bs-theme="dark"] table.dataTable tbody tr.selected,
+[data-bs-theme="dark"] table.dataTable tbody tr.selected:hover {
+  background-color: #8a4513 !important;
+  box-shadow: inset 0 0 0 2px #ff8c3b;
+}
+[data-bs-theme="dark"] table.dataTable tbody tr.selected td {
+  color: #ffffff;
 }
 
 /* ----------------------------------------------------------------------------
@@ -274,6 +437,24 @@ table.dataTable tbody tr.selected td {
   border: 1px solid #e3e8ec;
   border-radius: 6px;
   overflow: hidden;          /* rogne tout débordement du graphique (plotly) */
+}
+
+/* Zones et cartes graphiques — mode sombre */
+[data-bs-theme="dark"] .zone-tableau,
+[data-bs-theme="dark"] .zone-graphiques {
+  background-color: #303030;
+  border-color: #3f3f3f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+[data-bs-theme="dark"] .zone-graphiques h4 {
+  color: #ffffff;
+}
+[data-bs-theme="dark"] .graph-card {
+  background-color: #383838;
+  border-color: #4a4a4a;
+}
+[data-bs-theme="dark"] .dci-title {
+  color: #ff8c3b;
 }
 
 .graph-card .plotly,

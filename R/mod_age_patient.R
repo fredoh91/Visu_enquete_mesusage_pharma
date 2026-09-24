@@ -203,7 +203,7 @@ mod_age_patient_ui <- function(id) {
 # --- Serveur du module ---------------------------------------------------------
 #' Serveur du module AGE PATIENT(E).
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_age_patient_server <- function(id) {
+mod_age_patient_server <- function(id, theme) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -847,7 +847,7 @@ mod_age_patient_server <- function(id) {
     })
 
     # --- Camembert 1 : genre des patients (partie basse) ----------------------
-    output$plot_genre <- plotly::renderPlotly({
+    output$plot_genre <- render_plotly_theme(theme, {
       age <- selected_age_court()
       titre <- wrap_titre(paste("Répartition par genre —", age))
       gv <- genre_values()
@@ -885,7 +885,7 @@ mod_age_patient_server <- function(id) {
     })
 
     # --- Camembert 2 : données "enceinte" (partie basse) ----------------------
-    output$plot_enceinte <- plotly::renderPlotly({
+    output$plot_enceinte <- render_plotly_theme(theme, {
       age <- selected_age_court()
       titre <- wrap_titre(paste("Répartition des données \"enceinte\" —", age))
       ev <- enceinte_values()
@@ -926,7 +926,7 @@ mod_age_patient_server <- function(id) {
     # On affiche les 3 modalités d'origine (prise / prescription / dispensation)
     # avec, pour chacune, DEUX barres (bordeaux = tranche d'âge, orange =
     # ensemble des cas), comme dans les onglets précédents.
-    output$plot_origine <- plotly::renderPlotly({
+    output$plot_origine <- render_plotly_theme(theme, {
       age <- selected_age_court()
       titre <- wrap_titre(paste("Répartition par origine —", age))
       ov <- origine_values()
@@ -1017,7 +1017,7 @@ mod_age_patient_server <- function(id) {
     # --- Barres horizontales du type de mésusage -------------------------------
     # DEUX barres par libellé de type (bordeaux = tranche d'âge, orange =
     # ensemble des cas), avec hiérarchie sur 2 niveaux (groupes en gras).
-    output$plot_type <- plotly::renderPlotly({
+    output$plot_type <- render_plotly_theme(theme, {
       age <- selected_age_court()
       titre <- wrap_titre(paste("Répartition par type —", age))
       tv <- type_values()
@@ -1110,7 +1110,7 @@ mod_age_patient_server <- function(id) {
     # --- Barres horizontales du type de prise ----------------------------------
     # DEUX barres par libellé de type de prise (bordeaux = tranche d'âge,
     # orange = ensemble des cas), avec hiérarchie sur 2 niveaux.
-    output$plot_type_prise <- plotly::renderPlotly({
+    output$plot_type_prise <- render_plotly_theme(theme, {
       age <- selected_age_court()
       titre <- wrap_titre(paste("Répartition par type de prise —", age))
       tp <- type_prise_values()
@@ -1213,7 +1213,7 @@ mod_age_patient_server <- function(id) {
     # cas), triées par pourcentage décroissant. La liaison avec la tranche d'âge
     # sélectionnée s'effectue via les colonnes K -> T (11:20) de
     # principaux_facteurs.xlsx.
-    output$plot_facteur <- plotly::renderPlotly({
+    output$plot_facteur <- render_plotly_theme(theme, {
       age <- selected_age_court()
       titre <- wrap_titre(paste("Répartition par facteurs —", age))
       fv <- facteur_plot_data()

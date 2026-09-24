@@ -137,7 +137,7 @@ mod_medoc_reg_ui <- function(id) {
 # --- Server du module ---------------------------------------------------------
 #' Server du module Registre des médicaments.
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_medoc_reg_server <- function(id) {
+mod_medoc_reg_server <- function(id, theme) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -942,7 +942,7 @@ mod_medoc_reg_server <- function(id) {
     # Camembert simple : répartition Homme / Femme / Autre. Chaque secteur
     # affiche l'effectif et le pourcentage (entre parenthèses). L'infobulle
     # mentionne le libellé de la donnée, l'effectif et le pourcentage.
-    output$plot_genre <- plotly::renderPlotly({
+    output$plot_genre <- render_plotly_theme(theme, {
       dci <- selected_dci()
       gv <- genre_values()
       if (is.null(dci) || is.null(gv) || nrow(gv) == 0) {
@@ -989,7 +989,7 @@ mod_medoc_reg_server <- function(id) {
     # vert. Le pourcentage est recalculé sur l'effectif TOTAL des données
     # "enceinte" (Non + Oui + Non renseigné), conformément aux directives.
     # Chaque secteur affiche l'effectif et le pourcentage (entre parenthèses).
-    output$plot_enceinte <- plotly::renderPlotly({
+    output$plot_enceinte <- render_plotly_theme(theme, {
       dci <- selected_dci()
       ev <- enceinte_values()
       if (is.null(dci) || is.null(ev) || nrow(ev) == 0) {
@@ -1042,7 +1042,7 @@ mod_medoc_reg_server <- function(id) {
     # Les quatre combinaisons (Type : groupe/detail) × (Mode : molécule/ensemble
     # des cas) forment quatre traces distinctes afin d'obtenir une légende
     # lisible.
-    output$plot_age <- plotly::renderPlotly({
+    output$plot_age <- render_plotly_theme(theme, {
       dci <- selected_dci()
       av <- age_values()
       if (is.null(dci) || is.null(av) || nrow(av) == 0) {
@@ -1164,7 +1164,7 @@ mod_medoc_reg_server <- function(id) {
     # Le dénominateur est géré dans origine_values() ; ici on ne fait
     # qu'afficher. Toutes les modalités étant de niveau "detail", seules les
     # combinaisons "detail" alimentent la légende.
-    output$plot_origine <- plotly::renderPlotly({
+    output$plot_origine <- render_plotly_theme(theme, {
       dci <- selected_dci()
       ov <- origine_values()
       if (is.null(dci) || is.null(ov) || nrow(ov) == 0) {
@@ -1271,7 +1271,7 @@ mod_medoc_reg_server <- function(id) {
     # Le dénominateur est géré dans type_values() ; ici on ne fait qu'afficher.
     # Les quatre combinaisons (Type : groupe/detail) × (Mode : molécule/ensemble
     # des cas) forment quatre traces distinctes pour une légende lisible.
-    output$plot_type <- plotly::renderPlotly({
+    output$plot_type <- render_plotly_theme(theme, {
       dci <- selected_dci()
       tv <- type_values()
       if (is.null(dci) || is.null(tv) || nrow(tv) == 0) {
@@ -1386,7 +1386,7 @@ mod_medoc_reg_server <- function(id) {
     # qu'afficher. Les quatre combinaisons (Type : groupe/detail) × (Mode :
     # molécule/ensemble des cas) forment quatre traces distinctes pour une
     # légende lisible.
-    output$plot_type_prise <- plotly::renderPlotly({
+    output$plot_type_prise <- render_plotly_theme(theme, {
       dci <- selected_dci()
       tp <- type_prise_values()
       if (is.null(dci) || is.null(tp) || nrow(tp) == 0) {
@@ -1494,7 +1494,7 @@ mod_medoc_reg_server <- function(id) {
       plotly::plotlyOutput(ns("plot_facteur"), height = facteur_height())
     })
 
-    output$plot_facteur <- plotly::renderPlotly(
+    output$plot_facteur <- render_plotly_theme(theme, 
       {
         dci <- selected_dci()
         fv <- facteur_plot_data()
