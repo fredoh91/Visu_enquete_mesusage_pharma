@@ -51,7 +51,7 @@ ui <- page_navbar(
             class = "shortcut-card",
             icon("file-medical"),
             h4("Caractéristiques des mésusages par molécule "),
-            p("Tableau des substances (DCI) et statistiques par genre des patients."),
+            p("Tableau des substances (DCI) et statistiques associées."),
             actionButton("go_medoc", "Accéder aux caractéristiques des mésusages par molécule",
                          class = "btn btn-primary btn-block")
           )
@@ -62,7 +62,7 @@ ui <- page_navbar(
             class = "shortcut-card",
             icon("table-list"),
             h4("Caractéristiques des mésusages par code ATC "),
-            p("Tableau des libellés ATC et codes ATC, et statistiques par genre des patients."),
+            p("Tableau des libellés ATC et codes ATC et statistiques associées."),
             actionButton("go_lib_code_atc", "Accéder aux caractéristiques des mésusages par code ATC",
                          class = "btn btn-primary btn-block")
           )
@@ -83,7 +83,7 @@ ui <- page_navbar(
           tags$div(
             class = "shortcut-card",
             icon("exclamation-circle"),
-            h4("Origine du mésusage "),
+            h4("Caractéristiques des mésusages selon leurs origines "),
             p("Tableau des origines du mésusage (prise, prescription, dispensation) et statistiques associées."),
             actionButton("go_origine", "Accéder aux origines du mésusage",
                          class = "btn btn-primary btn-block")
@@ -94,8 +94,8 @@ ui <- page_navbar(
           tags$div(
             class = "shortcut-card",
             icon("layer-group"),
-            h4("Classe ATC SOC "),
-            p("Tableau des libellés SOC (colonne B) et statistiques associées, sans le graphique des facteurs."),
+            h4("Caractéristiques des mésusages par classe ATC SOC "),
+            p("Tableau des libellés SOC et statistiques associées."),
             actionButton("go_classe_atc_soc", "Accéder aux classes ATC SOC",
                          class = "btn btn-primary btn-block")
           )
@@ -105,8 +105,8 @@ ui <- page_navbar(
           tags$div(
             class = "shortcut-card",
             icon("user"),
-            h4("âge patient(e) "),
-            p("Tableau des tranches d'âge (colonne B) et statistiques associées, sans le graphique des âges."),
+            h4("Caractéristiques des mésusages par âge patient(e) "),
+            p("Tableau des tranches d'âge et statistiques associées."),
             actionButton("go_age_patient", "Accéder aux âges patient(e)",
                          class = "btn btn-primary btn-block")
           )
