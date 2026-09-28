@@ -95,6 +95,27 @@ enceinte_colors <- function() {
   )
 }
 
+#' Palette des classes ATC pour le camembert de l'onglet AGE PATIENT(E).
+#'
+#' Renvoie un vecteur de 14 couleurs hexadécimales destiné à colorer les 14
+#' secteurs du camembert « Répartition par classe ATC » (fichier
+#' CLASSE_ATC_SOC.xlsx). Le nombre de classes ATC étant fixe (14 : Système
+#' nerveux central, Anti-infectieux généraux systémiques, Appareil digestif et
+#' métabolisme, ...), on génère une palette qualitative distincte, volontairement
+#' éloignée des bordeaux (mésusages) et des verts (genres / enceinte) pour éviter
+#' toute confusion visuelle.
+#'
+#' Aucun nouveau package n'est introduit : on s'appuie sur
+#' `grDevices::hcl.colors()` (R de base, palette "Set3", disponible depuis
+#' R ≥ 3.6.0).
+#'
+#' @return Un vecteur nommé de 14 couleurs hexadécimales (les noms étant les
+#'   indices 1 à 14, utilisés par position).
+#' @export
+atc_colors <- function() {
+  unname(grDevices::hcl.colors(14L, palette = "Set3"))
+}
+
 #' Découpe un libellé en plusieurs lignes pour les graphiques Plotly.
 #'
 #' Si un libellé (ex. "Manque d'info. ou com. interprofessionnelle") est trop

@@ -148,7 +148,25 @@ mod_origine_mesusage_ui <- function(id) {
             class = "graph-card",
             plotly::plotlyOutput(ns("plot_type_prise"), height = "640px")
           )
+        ),
+
+        # Carte 8 : camembert de la répartition des classes ATC.
+        # Les données proviennent de CLASSE_ATC_SOC.xlsx (chargé au même moment
+        # que origine_du_mesusage.xlsx) : chaque classe ATC est une ligne
+        # (colonne B), la liaison avec l'origine du mésusage sélectionnée se fait
+        # par la colonne correspondante (en-têtes de ligne 2 des colonnes U -> W =
+        # indices 21 à 23). Le camembert affiche les pourcentages (ligne
+        # "pourcentage") et les libellés des classes ATC ; une infobulle indique
+        # libellé, effectif et pourcentage. La hauteur est volontairement
+        # supérieure aux autres camemberts pour caser les 14 libellés ATC.
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_atc"), height = "720px")
+          )
         )
+
       )
     )
   )
@@ -190,6 +208,24 @@ mod_origine_mesusage_server <- function(id, theme) {
     principaux_facteurs <- reactive({
       tryCatch(
         read_principaux_facteurs(),
+        error = function(e) NULL
+      )
+    })
+
+    # --- Données brutes des classes ATC (CLASSE_ATC_SOC.xlsx) ----------------
+    # Chargé au même moment que origine_du_mesusage.xlsx pour alimenter le
+    # 8e graphique de l'onglet (camembert des classes ATC). Fichier transposé
+    # traité par read_classe_atc_soc() (skip = 1) : la ligne 2 du fichier devient
+    # l'en-tête de colonnes, de sorte que les origines du mésusage (U..W =
+    # indices 21:23) sont directement des NOMS de colonnes portant exactement le
+    # libellé complet de l'origine — la liaison se fait donc par comparaison
+    # (normalisée / robuste) des noms de colonnes 21:23 avec l'origine sélectionnée.
+    # Chaque classe ATC occupe une ligne identifiée par la colonne B
+    # ("Libellé SOC") avec 3 lignes successives (effectif / pourcentage /
+    # significativite).
+    classe_atc_soc <- reactive({
+      tryCatch(
+        read_classe_atc_soc(),
         error = function(e) NULL
       )
     })
@@ -610,6 +646,60 @@ mod_origine_mesusage_server <- function(id, theme) {
       }))
       out
     })
+    # --- Données du camembert des classes ATC --------------------------------
+    # Construit la dataframe nécessaire au camembert 8 : pour chaque classe ATC
+    # (lignes identifiées dans la colonne B / "Libellé SOC" du fichier
+    # CLASSE_ATC_SOC.xlsx), on lit dans la colonne correspondant à l'origine du
+    # mésusage sélectionnée :
+    #   * la ligne "pourcentage" -> Pct = valeur × 100 (les valeurs du fichier
+    #     sont des proportions comprises entre 0 et 1) ;
+    #   * la ligne "effectif"    -> Effectif = valeur.
+    # La liaison origine <> colonne se fait par comparaison (robuste, minuscules
+    # + trim) du libellé complet de l'origine (selected_origine) avec l'en-tête
+    # (nom) des colonnes 21:23 (U -> W). Comme pour la liste SOC de l'onglet
+    # « CLASSE ATC SOC », les lignes agrégées "Total" / "Autre" / "Autres" sont
+    # exclues.
+    atc_values <- reactive({
+      origine <- selected_origine()
+      data <- classe_atc_soc()
+      req(origine, data)
+
+      colnames_orig <- names(data)[21:23]
+      key <- tolower(trimws(as.character(origine)))
+      cidx <- which(vapply(
+        colnames_orig,
+        function(nm) tolower(trimws(as.character(nm))) == key,
+        logical(1)
+      ))
+      if (length(cidx) == 0) {
+        return(NULL)
+      }
+      col_name <- colnames_orig[cidx[1]]
+
+      # Classes ATC réelles (colonne B), hors lignes agrégées.
+      socs <- unique(data[[2]])
+      socs <- socs[!socs %in% c("Total", "Autre", "Autres")]
+
+      rows <- lapply(socs, function(s) {
+        rp <- data[data[[2]] == s & data$Type_donnee == "pourcentage", ]
+        re <- data[data[[2]] == s & data$Type_donnee == "effectif", ]
+        p <- if (nrow(rp) >= 1) suppressWarnings(as.numeric(rp[[col_name]][1])) else NA
+        e <- if (nrow(re) >= 1) suppressWarnings(as.numeric(re[[col_name]][1])) else NA
+        if (is.na(p)) p <- 0
+        if (is.na(e)) e <- 0
+        data.frame(Label = s, Effectif = e, Pct = p * 100, stringsAsFactors = FALSE)
+      })
+      df <- do.call(rbind, rows)
+      df <- df[df$Effectif > 0 | df$Pct > 0, , drop = FALSE]
+      if (nrow(df) == 0) {
+        return(NULL)
+      }
+      df <- df[order(-df$Pct), , drop = FALSE]
+      df$Pct_fr <- format(round(df$Pct, 1), nsmall = 1, decimal.mark = ",")
+      df
+    })
+
+
 
 
     # --- Données des barres horizontales des facteurs de mésusage --------------
@@ -1180,6 +1270,46 @@ mod_origine_mesusage_server <- function(id, theme) {
           )
         )
     })
+    # --- Camembert 8 : répartition par classe ATC ----------------------------
+    output$plot_atc <- render_plotly_theme(theme, {
+      origine <- selected_origine_court()
+      titre <- wrap_titre(paste("Répartition par classe ATC —", origine))
+      av <- atc_values()
+      if (is.null(origine) || is.null(av) || nrow(av) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      pal_atc <- atc_colors()
+      col_segments <- pal_atc[seq_len(nrow(av))]
+
+      # Libellé + pourcentage dans chaque secteur.
+      txt <- paste0(av$Label, "<br>", av$Pct_fr, "%")
+
+      plotly::plot_ly(
+        labels = av$Label,
+        values = av$Effectif,
+        type = "pie",
+        customdata = av$Pct_fr,
+        text = txt,
+        textinfo = "text",
+        textposition = "inside",
+        insidetextorientation = "horizontal",
+        marker = list(
+          colors = col_segments,
+          line = list(color = "#ffffff", width = 1)
+        ),
+        hovertemplate = paste0(
+          "%{label}<br>Effectif : %{value}<br>Pourcentage : %{customdata} %<extra></extra>"
+        ),
+        showlegend = FALSE
+      ) %>%
+        plotly::layout(
+          title = titre,
+          margin = list(l = 20, r = 20, t = titre_margin_top(titre), b = 20)
+        )
+    })
+
+
 
 
     # --- Barres horizontales des facteurs de mésusage --------------------------
@@ -1295,7 +1425,9 @@ mod_origine_mesusage_server <- function(id, theme) {
       selected_origine = selected_origine,
       facteur_values = facteur_values,
       facteur_plot_data = facteur_plot_data,
-      facteur_height = facteur_height
+      facteur_height = facteur_height,
+      classe_atc_soc = classe_atc_soc,
+      atc_values = atc_values
     )
 
   })
