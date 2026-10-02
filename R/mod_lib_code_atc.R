@@ -123,8 +123,9 @@ mod_lib_code_atc_ui <- function(id) {
         # LIB_CODE_ATC_OXOMEMAZINE.xlsx. La liaison se fait par le code ATC
         # (en-têtes de ligne 2 des colonnes EX -> FI = indices 154:165).
         # Le grand nombre de facteurs (29) justifie un dépliage : par défaut on
-        # n'affiche que les 15 premiers pourcentages, une case à cocher permet
-        # d'afficher l'ensemble des facteurs.
+        # n'affiche que le nombre paramétré de facteurs (n_facteurs, par défaut
+        # 10) aux plus grands pourcentages, une case à cocher permet d'afficher
+        # l'ensemble des facteurs.
         tags$div(
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
@@ -135,7 +136,7 @@ mod_lib_code_atc_ui <- function(id) {
               value = FALSE
             ),
             # La hauteur est pilotée côté serveur (renderUI + facteur_height()) :
-            # compacte pour la vue "15 premiers", agrandie après dépliage.
+            # compacte pour la vue "n_facteurs premiers", agrandie après dépliage.
             shiny::uiOutput(ns("plot_facteur_ui"))
           )
         ),
@@ -161,7 +162,12 @@ mod_lib_code_atc_ui <- function(id) {
 # --- Server du module ---------------------------------------------------------
 #' Server du module Libellés / codes ATC.
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_lib_code_atc_server <- function(id, theme) {
+#' @param n_facteurs Nombre de facteurs de mésusage affichés par défaut dans le
+#'   6e graphique (barres horizontales des facteurs) avant dépliage. Chaque
+#'   facteur génère 2 barres (molécule + ensemble des cas), donc le nombre de
+#'   lignes tracées par défaut vaut \code{n_facteurs * 2}. Paramétrable :
+#'   \code{mod_lib_code_atc_server("lib_code_atc", theme, n_facteurs = 10)}.
+mod_lib_code_atc_server <- function(id, theme, n_facteurs = 10) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -904,30 +910,31 @@ mod_lib_code_atc_server <- function(id, theme) {
     })
 
     # --- Hauteur du graphique facteur (responsive au dépliage) ----------------
-    # Vue "15 premiers facteurs" : 2 barres × 15 ≈ 30 barres → hauteur compacte.
+    # Vue "n_facteurs premiers" : 2 barres × n_facteurs barres → hauteur compacte
+    # proportionnelle au nombre de facteurs paramétré (n_facteurs * 55 px).
     # Vue "tous" (29 facteurs) : 2 barres × 29 ≈ 58 barres → hauteur agrandie.
-    # Hauteurs alignées sur celles de l'onglet MEDOC_REG (820 px plié / 1000 px
-    # déplié) afin que les pourcentages restent parfaitement lisibles.
+    # Hauteurs alignées sur celles de l'onglet MEDOC_REG (proportionnelle plié /
+    # 1000 px déplié) afin que les pourcentages restent parfaitement lisibles.
     facteur_height <- reactive({
       if (isTRUE(input$facteur_afficher_tous)) {
         "1000px"
       } else {
-        "820px"
+        paste0(n_facteurs * 55, "px")
       }
     })
-    # --- Jeu de données affiché (filtrage 15 premiers / tous) -----------------
-    # Extrait de facteur_values() le sous-ensemble effectivement tracé : 30 lignes
-    # (15 facteurs × 2 barres) par défaut, ou la totalité (58 = 29 × 2) quand la
-    # case "Afficher les 29 facteurs" est cochée. facteur_values() étant déjà trié
-    # par pourcentage décroissant, garder les premières lignes = garder les 15
-    # plus grands pourcentages. Réactive séparée ⟹ testable via testServer et
-    # réutilisée par le render plot_facteur.
+    # --- Jeu de données affiché (filtrage n_facteurs premiers / tous) ---------
+    # Extrait de facteur_values() le sous-ensemble effectivement tracé :
+    # n_facteurs*2 lignes (n_facteurs facteurs × 2 barres) par défaut, ou la
+    # totalité (58 = 29 × 2) quand la case "Afficher les 29 facteurs" est cochée.
+    # facteur_values() étant déjà trié par pourcentage décroissant, garder les
+    # premières lignes = garder les n_facteurs plus grands pourcentages. Réactive
+    # séparée ⟹ testable via testServer et réutilisée par le render plot_facteur.
     facteur_plot_data <- reactive({
       fv <- facteur_values()
       if (is.null(fv) || nrow(fv) == 0) {
         return(NULL)
       }
-      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else 30
+      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else n_facteurs * 2
       fv[seq_len(min(n_lignes, nrow(fv))), ]
     })
 

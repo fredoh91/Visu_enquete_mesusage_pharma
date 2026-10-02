@@ -182,15 +182,16 @@ mod_age_patient_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            # Contrôle de dépliage : par défaut seuls les 15 premiers facteurs
-            # (plus grands pourcentages) sont affichés ; on coche pour déplier.
+            # Contrôle de dépliage : par défaut seuls le nombre paramétré de
+            # facteurs (n_facteurs, par défaut 10) aux plus grands pourcentages
+            # sont affichés ; on coche pour déplier.
             shiny::checkboxInput(
               ns("facteur_afficher_tous"),
               label = "Afficher les 29 facteurs (déplier)",
               value = FALSE
             ),
             # La hauteur est pilotée côté serveur (renderUI + facteur_height()) :
-            # compacte pour la vue "15 premiers", agrandie après dépliage.
+            # compacte pour la vue "n_facteurs premiers", agrandie après dépliage.
             shiny::uiOutput(ns("plot_facteur_ui"))
           )
         ),
@@ -230,7 +231,12 @@ mod_age_patient_ui <- function(id) {
 # --- Serveur du module ---------------------------------------------------------
 #' Serveur du module AGE PATIENT(E).
 #' @param id Identifiant unique du module (doit correspondre à l'UI).
-mod_age_patient_server <- function(id, theme) {
+#' @param n_facteurs Nombre de facteurs de mésusage affichés par défaut dans le
+#'   6e graphique (barres horizontales des facteurs) avant dépliage. Chaque
+#'   facteur génère 2 barres (molécule + ensemble des cas), donc le nombre de
+#'   lignes tracées par défaut vaut \code{n_facteurs * 2}. Paramétrable :
+#'   \code{mod_age_patient_server(\"age\", theme, n_facteurs = 10)}.
+mod_age_patient_server <- function(id, theme, n_facteurs = 10) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -858,21 +864,26 @@ mod_age_patient_server <- function(id, theme) {
     })
 
     # --- Hauteur du graphique facteur (responsive au dépliage) ----------------
+    # Vue "n_facteurs premiers" (par défaut 10) : hauteur proportionnelle au nombre
+    # de facteurs paramétré (n_facteurs * 55 px) ; vue "tous" (29) : 1000 px.
     facteur_height <- reactive({
       if (isTRUE(input$facteur_afficher_tous)) {
         "1000px"
       } else {
-        "820px"
+        paste0(n_facteurs * 55, "px")
       }
     })
 
-    # --- Jeu de données affiché (filtrage 15 premiers / tous) -----------------
+    # --- Jeu de données affiché (filtrage n_facteurs premiers / tous) ---------
+    # Extrait de facteur_values() le sous-ensemble tracé : n_facteurs*2 lignes
+    # (n_facteurs facteurs × 2 barres) par défaut, ou la totalité si la case
+    # "Afficher les 29 facteurs" est cochée.
     facteur_plot_data <- reactive({
       fv <- facteur_values()
       if (is.null(fv) || nrow(fv) == 0) {
         return(NULL)
       }
-      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else 30
+      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else n_facteurs * 2
       fv[seq_len(min(n_lignes, nrow(fv))), ]
     })
 
