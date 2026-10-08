@@ -149,6 +149,17 @@ ui <- page_navbar(
             actionButton("go_age_patient", "Accéder aux âges patient(e)",
                          class = "btn btn-primary btn-block")
           )
+        ),
+        column(
+          width = 6,
+          tags$div(
+            class = "shortcut-card",
+            icon("table-list"),
+            h4("Données brutes par code ATC "),
+            p("Comptage des codes ATC et statistiques détaillées (fichier brut PMI_ANSM)."),
+            actionButton("go_brutes_atc", "Accéder aux données brutes par code ATC",
+                         class = "btn btn-primary btn-block")
+          )
         )
       )
     )
@@ -188,6 +199,12 @@ ui <- page_navbar(
     "AGE PATIENT(E)",
     value = "age_patient",
     mod_age_patient_ui("age_patient")
+  ),
+
+  nav_panel(
+    "DONNÉES BRUTES ATC",
+    value = "donnees_brutes_atc",
+    mod_donnees_brutes_atc_ui("donnees_brutes_atc")
   ),
 
   # Bouton de bascule clair / sombre, poussé tout à droite de la ligne d'onglets.
@@ -277,6 +294,11 @@ server <- function(input, output, session) {
     bslib::nav_select("main_navbar", selected = "age_patient")
   })
 
+  # Raccourci de la page d'accueil : ouvre l'écran DONNÉES BRUTES ATC.
+  observeEvent(input$go_brutes_atc, {
+    bslib::nav_select("main_navbar", selected = "donnees_brutes_atc")
+  })
+
   # Le module MEDOC_REG charge les données depuis data/MEDOC_REG.xlsx.
   mod_medoc_reg_server("medoc", theme = theme_actif)
 
@@ -294,6 +316,10 @@ server <- function(input, output, session) {
 
   # Le module AGE PATIENT charge les données depuis data/Age_patient.xlsx.
   mod_age_patient_server("age_patient", theme = theme_actif)
+
+  # Le module DONNÉES BRUTES ATC charge les données brutes depuis
+  # data/PMI_ANSM_Livraison_Données_brutes.xlsx.
+  mod_donnees_brutes_atc_server("donnees_brutes_atc", theme = theme_actif)
 }
 
 shiny::shinyApp(ui = ui, server = server)

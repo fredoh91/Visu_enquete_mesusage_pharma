@@ -249,3 +249,38 @@ read_all_excel <- function(dir = data_dir()) {
   names(out) <- tools::file_path_sans_ext(basename(files))
   out
 }
+
+# --- Lecture PMI_ANSM_Livraison_Données_brutes ---------------------------------
+#' Chemin complet vers le fichier Excel PMI_ANSM_Livraison_Données_brutes.
+#' @return Chemin absolu vers data/PMI_ANSM_Livraison_Données_brutes.xlsx.
+pmi_brutes_path <- function() {
+  file.path(data_dir(), "PMI_ANSM_Livraison_Données_brutes.xlsx")
+}
+
+#' Importe le fichier data/PMI_ANSM_Livraison_Données_brutes.xlsx.
+#'
+#' Contrairement aux fichiers « redressés » (MEDOC_REG, LIB_CODE_ATC, ...), ce
+#' fichier est un fichier BRUT : chaque ligne correspond à un cas (une fiche
+#' signalée par un pharmacien), et non à une combinaison
+#' effectif/pourcentage/significativité.
+#'
+#' Les deux premières lignes constituent des en-têtes imbriqués (ligne 1 :
+#' grandes catégories, ligne 2 : libellés complets de colonne). On lit donc le
+#' fichier SANS ignorer de ligne et sans nommer les colonnes (col_names = FALSE)
+#' afin d'accéder aux données par index numérique (robuste aux libellés avec
+#' espaces insécables). Les colonnes utiles de cet onglet sont :
+#'   - D (index  4) : Genre du patient ;
+#'   - E (index  5) : La patiente était-elle enceinte ? ;
+#'   - F (index  6) : Âge du patient ou de la patiente ;
+#'   - G (index  7) : Origine du mésusage (Q1) ;
+#'   - K, L, M (indices 11, 12, 13) : types de mésusage (Q5, jusqu'à 3 par cas) ;
+#'   - Q (index 17) : « Libellé Code ATC » au format "CODE (Libellé)".
+#'
+#' @return Une dataframe brute issue de readxl::read_excel() (col_names = FALSE).
+#' @export
+read_pmi_brutes <- function(path = pmi_brutes_path()) {
+  if (!file.exists(path)) {
+    stop("Fichier Excel PMI_ANSM_Livraison_Données_brutes introuvable : ", path)
+  }
+  readxl::read_excel(path, sheet = 1L, col_names = FALSE, .name_repair = "minimal")
+}
