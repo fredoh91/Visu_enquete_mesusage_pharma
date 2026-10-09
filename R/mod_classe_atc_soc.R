@@ -19,12 +19,12 @@
 #   - âge        : colonnes 11, 13-20
 #   - origine    : colonnes 21, 22, 23
 #   - type       : colonnes 40 à 50
-#   - type de prise : colonnes X -> AD (24 à 30)
+#   - type d'obtention : colonnes X -> AD (24 à 30)
 # La colonne B (index 2) porte le libellé du SOC, tandis que la colonne A
 # (index 1) porte le périmètre.
 #
 # Les 6 graphiques affichés (1 camembert genre, 2 camembert « enceinte »,
-# 3 barres âges, 4 barres origine, 5 barres type, 6 barres type de prise)
+# 3 barres âges, 4 barres origine, 5 barres type, 6 barres type d'obtention)
 # sont construits exactement comme dans les onglets précédents. Seul le
 # graphique 6 « facteurs » de FOCUS_IPP_LAXA_CORTICO est volontairement
 # absent.
@@ -108,7 +108,7 @@ mod_classe_atc_soc_ui <- function(id) {
           )
         ),
 
-        # Carte 6 : barres horizontales du type de prise (2 niveaux hiérarchiques).
+        # Carte 6 : barres horizontales du type d'obtention (2 niveaux hiérarchiques).
         # Les données proviennent des colonnes X -> AD de
         # CLASSE_ATC_SOC.xlsx (24 à 30), comme dans MEDOC_REG / FOCUS.
         tags$div(
@@ -116,6 +116,29 @@ mod_classe_atc_soc_ui <- function(id) {
           tags$div(
             class = "graph-card",
             plotly::plotlyOutput(ns("plot_type_prise"), height = "640px")
+          )
+        ),
+
+        # Carte 8 : barres horizontales du type d'ordonnance.
+        # Les 4 modalités (simple, sécurisée, d'exception, autre) se trouvent
+        # dans les colonnes AE -> AH (indices 31:34) ; chaque position donne une
+        # paire de barres (SOC / ensemble des cas).
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_type_ordonnance"), height = "640px")
+          )
+        ),
+
+        # Carte 9 : barres horizontales de la nature du prescripteur.
+        # La hiérarchie (généraliste, spécialiste [groupe], hospitalier, libéral,
+        # autres) se trouve dans les colonnes AI -> AM (indices 35:39).
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_nature_prescripteur"), height = "640px")
           )
         )
       )
@@ -547,7 +570,7 @@ mod_classe_atc_soc_server <- function(id, theme) {
 
 
 
-    # --- Données des barres horizontales du type de prise -----------------------
+    # --- Données des barres horizontales du type d'obtention -----------------------
     # Lecture depuis la ligne "effectif" du SOC sélectionné. Les colonnes
     # concernées vont de X à AD (index 24 à 30) et se répartissent sur 2 niveaux
     # hiérarchiques (comme les graphiques des âges et du type) :
@@ -642,6 +665,158 @@ mod_classe_atc_soc_server <- function(id, theme) {
     })
 
 
+    # --- Données des barres horizontales du type d'ordonnance ------------------
+    # Lecture depuis la ligne "effectif" du SOC sélectionné. Les 4 modalités se
+    # trouvent dans les colonnes AE -> AH (index 31:34). Chaque modalité est de
+    # niveau "detail" (pas de hiérarchie) et donne DEUX barres.
+    type_ordonnance_values <- reactive({
+      soc <- selected_soc()
+      req(soc)
+      data <- soc_data()
+      req(data)
+
+      row <- data %>%
+        dplyr::filter(.data$SOC == soc, .data$Type_donnee == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+
+      total_mol <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total_mol) || total_mol <= 0) {
+        return(NULL)
+      }
+      row_total <- data %>%
+        dplyr::filter(.data$SOC == "Total", .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[4]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      libelles <- c(
+        "Ordonnance simple",
+        "Ordonnance sécurisée",
+        "Prescription de médicaments d’exception",
+        "Autre type d’ordonnance"
+      )
+      eff <- vapply(31:34, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+      Type <- rep("detail", length(libelles))
+
+      out <- do.call(rbind, lapply(seq_along(libelles), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = libelles[k],
+            Libelle_brut = libelles[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(libelles[k], "\u200B"),
+            Libelle_brut = libelles[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
+    })
+
+    # --- Données des barres horizontales de la nature du prescripteur ----------
+    # Lecture depuis la ligne "effectif" du SOC sélectionné. Les colonnes vont
+    # de AI à AM (index 35:39) et se répartissent sur 2 niveaux :
+    #   - "Médecin généraliste"                    (AI=35, detail)
+    #   - "ST Médecin spécialiste" (groupe en gras)(AJ=36, effectif agrégé)
+    #     - "Médecin spécialiste hospitalier"      (AL=38, detail)
+    #     - "Médecin spécialiste libéral ..."      (AK=37, detail)
+    #   - "Autres prescripteurs : Sage-Femme, ..." (AM=39, detail)
+    # L'effectif du groupe "Médecin spécialiste" est la colonne agrégée (AJ=36),
+    # et non la somme des deux spécialités. Chaque position donne DEUX barres.
+    nature_prescripteur_values <- reactive({
+      soc <- selected_soc()
+      req(soc)
+      data <- soc_data()
+      req(data)
+
+      row <- data %>%
+        dplyr::filter(.data$SOC == soc, .data$Type_donnee == "effectif")
+      if (nrow(row) != 1) {
+        return(NULL)
+      }
+      row <- row[1, ]
+
+      total_mol <- suppressWarnings(as.numeric(row[[4]]))
+      if (is.na(total_mol) || total_mol <= 0) {
+        return(NULL)
+      }
+      row_total <- data %>%
+        dplyr::filter(.data$SOC == "Total", .data$Type_donnee == "effectif")
+      total_ens <- if (nrow(row_total) >= 1) {
+        suppressWarnings(as.numeric(row_total[[4]][1]))
+      } else {
+        NA
+      }
+      if (is.na(total_ens) || total_ens <= 0) {
+        total_ens <- total_mol
+      }
+
+      defs <- data.frame(
+        Libelle_brut = c(
+          "Médecin généraliste",
+          "Médecin spécialiste",          # groupe (niveau 1), effectif agrégé
+          "Médecin spécialiste hospitalier",
+          "Médecin spécialiste libéral (en cabinet ou clinique privée)",
+          "Autres prescripteurs : Sage-Femme, kinésithérapeute, IDE"
+        ),
+        Index = c(35L, 36L, 38L, 37L, 39L),
+        Niveau = c(2L, 1L, 2L, 2L, 2L),
+        stringsAsFactors = FALSE
+      )
+
+      eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      Type <- ifelse(defs$Niveau == 1L, "groupe", "detail")
+      Libelle_aff <- ifelse(
+        defs$Niveau == 1L,
+        paste0("<b>", defs$Libelle_brut, "</b>"),
+        paste0("    ", defs$Libelle_brut)
+      )
+
+      out <- do.call(rbind, lapply(seq_along(Libelle_aff), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_aff[k],
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_aff[k], "\u200B"),
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
+    })
 
     # --- Message / état de l'import des données --------------------------------
     output$etat <- renderUI({
@@ -1056,11 +1231,11 @@ mod_classe_atc_soc_server <- function(id, theme) {
 
 
 
-    # --- Barres horizontales du type de prise -----------------------------------
-    # DEUX barres par libellé de type de prise (bordeaux = SOC, orange = ensemble).
+    # --- Barres horizontales du type d'obtention -----------------------------------
+    # DEUX barres par libellé de type d'obtention (bordeaux = SOC, orange = ensemble).
     output$plot_type_prise <- render_plotly_theme(theme, {
       soc <- selected_soc()
-      titre <- wrap_titre(paste("Répartition par type de prise —", soc))
+      titre <- wrap_titre(paste("Répartition par type d'obtention —", soc))
       tpv <- type_prise_values()
       if (is.null(soc) || is.null(tpv) || nrow(tpv) == 0) {
         return(plotly::plotly_empty())
@@ -1147,6 +1322,196 @@ mod_classe_atc_soc_server <- function(id, theme) {
           )
         )
     })
+    # --- Barres horizontales du type d'ordonnance -------------------------------
+    # Comme pour l'origine, DEUX barres par modalité : bordeaux = « par rapport
+    # au SOC sélectionné », orange = « par rapport à l'ensemble des cas » (voir
+    # type_ordonnance_values()). Les 4 modalités sont de niveau "detail".
+    output$plot_type_ordonnance <- render_plotly_theme(theme, {
+      soc <- selected_soc()
+      titre <- wrap_titre(paste("Répartition par type d'ordonnance —", soc))
+      to <- type_ordonnance_values()
+      if (is.null(soc) || is.null(to) || nrow(to) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
+
+      col_vec <- ifelse(
+        to$Mode == "molécule",
+        ifelse(to$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(to$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      to$Col <- col_vec
+
+      to$Libelle <- wrap_libelle(to$Libelle)
+      categoryarray <- rev(to$Libelle)
+
+      to$TickLabel <- to$Libelle
+      to$TickLabel[to$Mode == "ensemble des cas"] <- ""
+
+      groups <- list(
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- to[to$Mode == g$Mode & to$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
+        plotly::layout(
+          title = titre,
+          barmode = "overlay",
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(to$TickLabel)
+          ),
+          margin = list(l = 20, r = 20, t = titre_margin_top(titre), b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
+        )
+    })
+    # --- Barres horizontales de la nature du prescripteur -----------------------
+    # Comme pour le type d'obtention, DEUX barres par position : bordeaux =
+    # « par rapport au SOC sélectionné », orange = « par rapport à l'ensemble
+    # des cas » (voir nature_prescripteur_values()). Un niveau 1 « Médecin
+    # spécialiste » (gras) regroupe les deux spécialités ; les 4 combinaisons
+    # (Type × Mode) forment des traces distinctes pour la légende.
+    output$plot_nature_prescripteur <- render_plotly_theme(theme, {
+      soc <- selected_soc()
+      titre <- wrap_titre(paste("Répartition par nature du prescripteur —", soc))
+      np <- nature_prescripteur_values()
+      if (is.null(soc) || is.null(np) || nrow(np) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
+
+      col_vec <- ifelse(
+        np$Mode == "molécule",
+        ifelse(np$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(np$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      np$Col <- col_vec
+
+      np$Libelle <- wrap_libelle(np$Libelle)
+      categoryarray <- rev(np$Libelle)
+
+      np$TickLabel <- np$Libelle
+      np$TickLabel[np$Mode == "ensemble des cas"] <- ""
+
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- np[np$Mode == g$Mode & np$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
+        plotly::layout(
+          title = titre,
+          barmode = "overlay",
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(np$TickLabel)
+          ),
+          margin = list(l = 20, r = 20, t = titre_margin_top(titre), b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
+        )
+    })
+
+
+
+
 
 
     # --- Retour exposé (inoffensif en production) -----------------------------
@@ -1162,7 +1527,9 @@ mod_classe_atc_soc_server <- function(id, theme) {
       age_values = age_values,
       origine_values = origine_values,
       type_values = type_values,
-      type_prise_values = type_prise_values
+      type_prise_values = type_prise_values,
+      type_ordonnance_values = type_ordonnance_values,
+      nature_prescripteur_values = nature_prescripteur_values
     )
 
   })

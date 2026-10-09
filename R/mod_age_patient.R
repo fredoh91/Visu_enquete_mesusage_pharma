@@ -22,7 +22,7 @@
 #   - enceinte   : colonnes 8, 9, 10
 #   - âge        : colonnes 11, 13-20 (critère de sélection de cet onglet)
 #   - origine    : colonnes 21, 22, 23
-#   - type de prise : colonnes X -> AD (24 à 30)
+#   - type d'obtention : colonnes X -> AD (24 à 30)
 #   - type       : colonnes 40 à 50
 # La colonne B (index 2) porte la tranche d'âge.
 #
@@ -196,7 +196,7 @@ mod_age_patient_ui <- function(id) {
           )
         ),
 
-        # Carte 7 : barres horizontales du type de prise (2 niveaux hiérarchiques).
+        # Carte 7 : barres horizontales du type d'obtention (2 niveaux hiérarchiques).
         # Les données proviennent des colonnes X -> AD de
         # Age_patient.xlsx (24 à 30), comme dans les onglets précédents.
         tags$div(
@@ -221,6 +221,29 @@ mod_age_patient_ui <- function(id) {
           tags$div(
             class = "graph-card",
             plotly::plotlyOutput(ns("plot_atc"), height = "720px")
+          )
+        ),
+
+        # Carte 9 : barres horizontales du type d'ordonnance.
+        # Les 4 modalités (simple, sécurisée, d'exception, autre) se trouvent
+        # dans les colonnes AE -> AH (indices 31:34) ; chaque position donne une
+        # paire de barres (tranche d'âge / ensemble des cas).
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_type_ordonnance"), height = "640px")
+          )
+        ),
+
+        # Carte 10 : barres horizontales de la nature du prescripteur.
+        # La hiérarchie (généraliste, spécialiste [groupe], hospitalier, libéral,
+        # autres) se trouve dans les colonnes AI -> AM (indices 35:39).
+        tags$div(
+          class = "col-12 col-md-6 col-xl-4",
+          tags$div(
+            class = "graph-card",
+            plotly::plotlyOutput(ns("plot_nature_prescripteur"), height = "640px")
           )
         )
       )
@@ -346,7 +369,7 @@ mod_age_patient_server <- function(id, theme, n_facteurs = 10) {
 
     # --- Ligne "effectif" de la tranche d'âge sélectionnée ------------------
     # Permet de récupérer les effectifs du genre (col 5-7), de "enceinte"
-    # (col 8-10), de l'origine (col 21-23), du type de prise (col 24-30) et du
+    # (col 8-10), de l'origine (col 21-23), du type d'obtention (col 24-30) et du
     # type (col 40-50) pour la tranche sélectionnée.
     selected_age_row <- reactive({
       age <- selected_age()
@@ -610,7 +633,7 @@ mod_age_patient_server <- function(id, theme, n_facteurs = 10) {
       out
     })
 
-    # --- Données des barres horizontales du type de prise ----------------------
+    # --- Données des barres horizontales du type d'obtention ----------------------
     # Lecture depuis la ligne "effectif" de la tranche d'âge sélectionnée. Les
     # colonnes concernées vont de X à AD (index 24 à 30) et se répartissent sur
     # 2 niveaux hiérarchiques (comme les graphiques du type précédents) :
@@ -885,6 +908,119 @@ mod_age_patient_server <- function(id, theme, n_facteurs = 10) {
       }
       n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else n_facteurs * 2
       fv[seq_len(min(n_lignes, nrow(fv))), ]
+    })
+
+    # --- Données des barres horizontales du type d'ordonnance ------------------
+    # Lecture depuis la ligne "effectif" de la tranche d'âge sélectionnée. Les
+    # 4 modalités se trouvent dans les colonnes AE -> AH (index 31:34). Chaque
+    # modalité est de niveau "detail" (pas de hiérarchie) et donne DEUX barres.
+    type_ordonnance_values <- reactive({
+      age <- selected_age()
+      req(age)
+      row <- selected_age_row()
+      req(row)
+      tot <- age_totals()
+      req(tot)
+
+      libelles <- c(
+        "Ordonnance simple",
+        "Ordonnance sécurisée",
+        "Prescription de médicaments d’exception",
+        "Autre type d’ordonnance"
+      )
+      eff <- vapply(31:34, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+      Type <- rep("detail", length(libelles))
+
+      out <- do.call(rbind, lapply(seq_along(libelles), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = libelles[k],
+            Libelle_brut = libelles[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / tot$total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(libelles[k], "\u200B"),
+            Libelle_brut = libelles[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / tot$total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
+    })
+
+    # --- Données des barres horizontales de la nature du prescripteur ----------
+    # Lecture depuis la ligne "effectif" de la tranche d'âge sélectionnée. Les
+    # colonnes vont de AI à AM (index 35:39) et se répartissent sur 2 niveaux :
+    #   - "Médecin généraliste"                    (AI=35, detail)
+    #   - "ST Médecin spécialiste" (groupe en gras)(AJ=36, effectif agrégé)
+    #     - "Médecin spécialiste hospitalier"      (AL=38, detail)
+    #     - "Médecin spécialiste libéral ..."      (AK=37, detail)
+    #   - "Autres prescripteurs : Sage-Femme, ..." (AM=39, detail)
+    # L'effectif du groupe "Médecin spécialiste" est la colonne agrégée (AJ=36),
+    # et non la somme des deux spécialités. Chaque position donne DEUX barres.
+    nature_prescripteur_values <- reactive({
+      age <- selected_age()
+      req(age)
+      row <- selected_age_row()
+      req(row)
+      tot <- age_totals()
+      req(tot)
+
+      defs <- data.frame(
+        Libelle_brut = c(
+          "Médecin généraliste",
+          "Médecin spécialiste",          # groupe (niveau 1), effectif agrégé
+          "Médecin spécialiste hospitalier",
+          "Médecin spécialiste libéral (en cabinet ou clinique privée)",
+          "Autres prescripteurs : Sage-Femme, kinésithérapeute, IDE"
+        ),
+        Index = c(35L, 36L, 38L, 37L, 39L),
+        Niveau = c(2L, 1L, 2L, 2L, 2L),
+        stringsAsFactors = FALSE
+      )
+
+      eff <- vapply(defs$Index, function(i) suppressWarnings(as.numeric(row[[i]])), numeric(1))
+      eff[is.na(eff)] <- 0
+
+      Type <- ifelse(defs$Niveau == 1L, "groupe", "detail")
+      Libelle_aff <- ifelse(
+        defs$Niveau == 1L,
+        paste0("<b>", defs$Libelle_brut, "</b>"),
+        paste0("    ", defs$Libelle_brut)
+      )
+
+      out <- do.call(rbind, lapply(seq_along(Libelle_aff), function(k) {
+        rbind(
+          data.frame(
+            Libelle      = Libelle_aff[k],
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "molécule",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / tot$total_mol * 100 else 0,
+            stringsAsFactors = FALSE
+          ),
+          data.frame(
+            Libelle      = paste0(Libelle_aff[k], "\u200B"),
+            Libelle_brut = defs$Libelle_brut[k],
+            Mode         = "ensemble des cas",
+            Type         = Type[k],
+            Effectif     = eff[k],
+            Pct          = if (eff[k] > 0) eff[k] / tot$total_ens * 100 else 0,
+            stringsAsFactors = FALSE
+          )
+        )
+      }))
+      out
     })
 
     # --- Message / état de l'import des données --------------------------------
@@ -1216,12 +1352,12 @@ mod_age_patient_server <- function(id, theme, n_facteurs = 10) {
         )
     })
 
-    # --- Barres horizontales du type de prise ----------------------------------
-    # DEUX barres par libellé de type de prise (bordeaux = tranche d'âge,
+    # --- Barres horizontales du type d'obtention ----------------------------------
+    # DEUX barres par libellé de type d'obtention (bordeaux = tranche d'âge,
     # orange = ensemble des cas), avec hiérarchie sur 2 niveaux.
     output$plot_type_prise <- render_plotly_theme(theme, {
       age <- selected_age_court()
-      titre <- wrap_titre(paste("Répartition par type de prise —", age))
+      titre <- wrap_titre(paste("Répartition par type d'obtention —", age))
       tp <- type_prise_values()
       if (is.null(age) || is.null(tp) || nrow(tp) == 0) {
         return(plotly::plotly_empty())
@@ -1347,6 +1483,197 @@ mod_age_patient_server <- function(id, theme, n_facteurs = 10) {
           margin = list(l = 20, r = 20, t = titre_margin_top(titre), b = 20)
         )
     })
+    # --- Barres horizontales du type d'ordonnance -------------------------------
+    # Comme pour l'origine, DEUX barres par modalité : bordeaux = « par rapport
+    # à la tranche d'âge sélectionnée », orange = « par rapport à l'ensemble des
+    # cas » (voir type_ordonnance_values()). Les 4 modalités sont de niveau
+    # "detail" (pas de hiérarchie).
+    output$plot_type_ordonnance <- render_plotly_theme(theme, {
+      age <- selected_age_court()
+      titre <- wrap_titre(paste("Répartition par type d'ordonnance —", age))
+      to <- type_ordonnance_values()
+      if (is.null(age) || is.null(to) || nrow(to) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
+
+      col_vec <- ifelse(
+        to$Mode == "molécule",
+        ifelse(to$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(to$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      to$Col <- col_vec
+
+      to$Libelle <- wrap_libelle(to$Libelle)
+      categoryarray <- rev(to$Libelle)
+
+      to$TickLabel <- to$Libelle
+      to$TickLabel[to$Mode == "ensemble des cas"] <- ""
+
+      groups <- list(
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- to[to$Mode == g$Mode & to$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
+        plotly::layout(
+          title = titre,
+          barmode = "overlay",
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(to$TickLabel)
+          ),
+          margin = list(l = 20, r = 20, t = titre_margin_top(titre), b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
+        )
+    })
+    # --- Barres horizontales de la nature du prescripteur -----------------------
+    # Comme pour le type d'obtention, DEUX barres par position : bordeaux =
+    # « par rapport à la tranche d'âge sélectionnée », orange = « par rapport à
+    # l'ensemble des cas » (voir nature_prescripteur_values()). Un niveau 1
+    # « Médecin spécialiste » (gras) regroupe les deux spécialités ; les 4
+    # combinaisons (Type × Mode) forment des traces distinctes pour la légende.
+    output$plot_nature_prescripteur <- render_plotly_theme(theme, {
+      age <- selected_age_court()
+      titre <- wrap_titre(paste("Répartition par nature du prescripteur —", age))
+      np <- nature_prescripteur_values()
+      if (is.null(age) || is.null(np) || nrow(np) == 0) {
+        return(plotly::plotly_empty())
+      }
+
+      pal_mol <- age_colors()
+      pal_ens <- age_colors_ensemble()
+
+      col_vec <- ifelse(
+        np$Mode == "molécule",
+        ifelse(np$Type == "groupe", unname(pal_mol["groupe"]), unname(pal_mol["detail"])),
+        ifelse(np$Type == "groupe", unname(pal_ens["groupe"]), unname(pal_ens["detail"]))
+      )
+      np$Col <- col_vec
+
+      np$Libelle <- wrap_libelle(np$Libelle)
+      categoryarray <- rev(np$Libelle)
+
+      np$TickLabel <- np$Libelle
+      np$TickLabel[np$Mode == "ensemble des cas"] <- ""
+
+      groups <- list(
+        list(Mode = "molécule",         Type = "groupe", Nom = "Molécule — groupe"),
+        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
+        list(Mode = "ensemble des cas", Type = "groupe", Nom = "Ensemble des cas — groupe"),
+        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      )
+
+      p <- plotly::plot_ly()
+      for (g in groups) {
+        sub <- np[np$Mode == g$Mode & np$Type == g$Type, ]
+        if (nrow(sub) == 0) {
+          next
+        }
+        p <- p %>%
+          plotly::add_trace(
+            type = "bar",
+            orientation = "h",
+            x = sub$Pct,
+            y = sub$Libelle,
+            text = paste0(round(sub$Pct, 1), " %"),
+            textposition = "auto",
+            cliponaxis = FALSE,
+            marker = list(color = sub$Col),
+            customdata = lapply(seq_len(nrow(sub)), function(i) {
+              c(sub$Libelle_brut[i], sub$Effectif[i], round(sub$Pct[i], 1))
+            }),
+            insidetextfont = list(color = "#ffffff"),
+            hovertemplate = paste0(
+              "%{customdata[0]}<br>Effectif : %{customdata[1]}",
+              "<br>Pourcentage : %{customdata[2]} %<extra></extra>"
+            ),
+            name = g$Nom,
+            showlegend = TRUE
+          )
+      }
+
+      p %>%
+        plotly::layout(
+          title = titre,
+          barmode = "overlay",
+          xaxis = list(
+            title = "Pourcentage (%)",
+            range = c(0, 105),
+            ticksuffix = "%"
+          ),
+          yaxis = list(
+            title = "",
+            categoryorder = "array",
+            categoryarray = categoryarray,
+            type = "category",
+            automargin = TRUE,
+            tickfont = list(size = 11),
+            tickmode = "array",
+            tickvals = categoryarray,
+            ticktext = rev(np$TickLabel)
+          ),
+          margin = list(l = 20, r = 20, t = titre_margin_top(titre), b = 20),
+          legend = list(
+            orientation = "h",
+            x = 0,
+            y = -0.12,
+            font = list(size = 11)
+          )
+        )
+    })
+
+
+
+
 
 
 

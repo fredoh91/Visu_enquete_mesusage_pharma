@@ -130,7 +130,7 @@ origine_mesusage_path <- function() {
 #' imbriqués : on ignore donc la première ligne et on utilise la seconde comme
 #' noms de colonnes (skip = 1). La structure des colonnes de données est
 #' identique à celle de MEDOC_REG / FOCUS (mêmes indices) : genre (5-7),
-#' enceinte (8-10), âge (11, 13-20), origine (21-23), type de prise (24-30),
+#' enceinte (8-10), âge (11, 13-20), origine (21-23), type d'obtention (24-30),
 #' type (40-50). La différence réside dans le contenu de la colonne B
 #' (index 2), qui porte ici le libellé de l'origine du mésusage
 #' (« Au moment de la prise du médicament (...) », ...), ainsi que
@@ -159,7 +159,7 @@ age_patient_path <- function() {
 #' imbriqués : on ignore donc la première ligne et on utilise la seconde comme
 #' noms de colonnes (skip = 1). La structure des colonnes de données est
 #' identique à celle de MEDOC_REG / FOCUS (mêmes indices) : genre (5-7),
-#' enceinte (8-10), âge (11, 13-20), origine (21-23), type de prise (24-30),
+#' enceinte (8-10), âge (11, 13-20), origine (21-23), type d'obtention (24-30),
 #' type (40-50). La différence réside dans le contenu de la colonne B
 #' (index 2), qui porte ici la tranche d'âge (« ST ENFANTS, ADOLESCENTS »,
 #' « Entre 2 et 11 ans (enfant) », « ST ADULTES », ...), ainsi que « Total »
@@ -187,7 +187,7 @@ classe_atc_soc_path <- function() {
 #' imbriqués : on ignore donc la première ligne et on utilise la seconde comme
 #' noms de colonnes (skip = 1). La structure des colonnes de données est
 #' identique à celle de MEDOC_REG / FOCUS (mêmes indices) : genre (5-7),
-#' enceinte (8-10), âge (11, 13-20), origine (21-23), type de prise (24-30),
+#' enceinte (8-10), âge (11, 13-20), origine (21-23), type d'obtention (24-30),
 #' type (40-50). La différence réside dans le contenu de la colonne B
 #' (index 2), qui porte ici le libellé du SOC (« Staphylococcus aureus »,
 #' ..., cf. colonne B), ainsi que « Total » pour la ligne de périmètre global.
