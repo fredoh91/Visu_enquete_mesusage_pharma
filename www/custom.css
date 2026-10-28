@@ -527,3 +527,25 @@ table.dataTable tbody tr.selected td {
   --couleur-enceinte-nr:  #D3D3D3;  /* Non renseigné */
 }
 
+
+/* Conteneur des cases a cocher du graphique des facteurs : les deux
+   cases (« Afficher les 29 facteurs (déplier) » et « Afficher l'ensemble
+   des cas ») sont alignées sur la même ligne et leur libellé est légèrement
+   réduit pour tenir côte à côte. */
+.facteur-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 18px;
+  margin-bottom: 6px;
+}
+.facteur-controls .shiny-input-container,
+.facteur-controls label {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+/* Mode sombre */
+[data-bs-theme="dark"] .facteur-controls label {
+  color: #e0e0e0;
+}

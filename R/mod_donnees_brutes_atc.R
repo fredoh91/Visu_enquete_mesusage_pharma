@@ -105,12 +105,19 @@ mod_donnees_brutes_atc_ui <- function(id) {
           class = "col-12 col-md-6 col-xl-4",
           tags$div(
             class = "graph-card",
-            shiny::checkboxInput(
-              ns("facteur_afficher_tous"),
-              label = "Afficher les 29 facteurs (déplier)",
-              value = FALSE
+            shiny::tags$div(
+              class = "facteur-controls",
+              shiny::checkboxInput(
+                ns("facteur_afficher_tous"),
+                label = "Afficher les 29 facteurs (déplier)",
+                value = FALSE
+              ),
+              shiny::checkboxInput(
+                ns("facteur_afficher_ens"),
+                label = "Afficher l'ensemble des cas",
+                value = FALSE
+              )
             ),
-            # La hauteur est pilotée côté serveur (renderUI + facteur_height()) :
             # compacte pour la vue "n_facteurs premiers", agrandie après dépliage.
             shiny::uiOutput(ns("plot_facteur_ui"))
           )
@@ -154,9 +161,11 @@ mod_donnees_brutes_atc_ui <- function(id) {
 #' @param theme Une valeur réactive (appelable) renvoyant "clair" ou "sombre",
 #'   utilisée pour habiller les graphiques (render_plotly_theme).
 #' @param n_facteurs Nombre de facteurs de mésusage affichés par défaut dans le
-#'   graphique des facteurs (barres horizontales) avant dépliage. Chaque facteur
-#'   génère 2 barres (molécule + ensemble des cas), donc le nombre de lignes
-#'   tracées par défaut vaut \code{n_facteurs * 2}. Paramétrable :
+#'   graphique des facteurs (barres horizontales) avant dépliage. Par défaut,
+#'   seul le mode molécule est tracé : le nombre de barres vaut donc
+#'   \code{n_facteurs}. Lorsque la case « Afficher l'ensemble des cas » est cochée,
+#'   chaque facteur génère 2 barres (molécule + ensemble des cas), soit
+#'   \code{n_facteurs * 2}. Paramétrable :
 #'   \code{mod_donnees_brutes_atc_server("donnees_brutes_atc", theme, n_facteurs = 10)}.
 mod_donnees_brutes_atc_server <- function(id, theme, n_facteurs = 10) {
   moduleServer(id, function(input, output, session) {
@@ -716,7 +725,10 @@ mod_donnees_brutes_atc_server <- function(id, theme, n_facteurs = 10) {
       if (isTRUE(input$facteur_afficher_tous)) {
         "1000px"
       } else {
-        paste0(n_facteurs * 55, "px")
+        # Nombre de barres affichées : n_facteurs si seul le mode molécule est
+        # tracé, 2 * n_facteurs si la case « ensemble des cas » est cochée.
+        n_barres <- n_facteurs * (if (isTRUE(input$facteur_afficher_ens)) 2L else 1L)
+        paste0(n_barres * 55, "px")
       }
     })
 
@@ -726,7 +738,15 @@ mod_donnees_brutes_atc_server <- function(id, theme, n_facteurs = 10) {
       if (is.null(fv) || nrow(fv) == 0) {
         return(NULL)
       }
-      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else n_facteurs * 2
+      # Modes tracés : par défaut, seul le mode molécule est conservé ;
+      # la case « Afficher l'ensemble des cas » y ajoute le mode ensemble des cas.
+      modes <- if (isTRUE(input$facteur_afficher_ens)) {
+        c("molécule", "ensemble des cas")
+      } else {
+        "molécule"
+      }
+      fv <- fv[fv$Mode %in% modes, , drop = FALSE]
+      n_lignes <- if (isTRUE(input$facteur_afficher_tous)) nrow(fv) else n_facteurs * length(modes)
       fv[seq_len(min(n_lignes, nrow(fv))), ]
     })
 
@@ -1327,9 +1347,13 @@ mod_donnees_brutes_atc_server <- function(id, theme, n_facteurs = 10) {
       fv$TickLabel[fv$Mode == "ensemble des cas"] <- ""
 
       groups <- list(
-        list(Mode = "molécule",         Type = "detail", Nom = "Molécule — détail"),
-        list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+        list(Mode = "molécule", Type = "detail", Nom = "Molécule — détail")
       )
+      # La trace « ensemble des cas » n'est ajoutée que si la case
+      # « Afficher l'ensemble des cas » est cochée.
+      if (isTRUE(input$facteur_afficher_ens)) {
+        groups[[length(groups) + 1L]] <- list(Mode = "ensemble des cas", Type = "detail", Nom = "Ensemble des cas — détail")
+      }
 
       p <- plotly::plot_ly()
       for (g in groups) {
@@ -1682,4 +1706,3 @@ mod_donnees_brutes_atc_server <- function(id, theme, n_facteurs = 10) {
     )
   })
 }
-
