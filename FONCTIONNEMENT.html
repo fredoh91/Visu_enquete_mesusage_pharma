@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>fonctionnement</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="FONCTIONNEMENT_files/libs/clipboard/clipboard.min.js"></script>
+<script src="FONCTIONNEMENT_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="FONCTIONNEMENT_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="FONCTIONNEMENT_files/libs/quarto-html/popper.min.js"></script>
+<script src="FONCTIONNEMENT_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="FONCTIONNEMENT_files/libs/quarto-html/anchor.min.js"></script>
+<link href="FONCTIONNEMENT_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="FONCTIONNEMENT_files/libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="FONCTIONNEMENT_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="FONCTIONNEMENT_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="FONCTIONNEMENT_files/libs/bootstrap/bootstrap-215b371544c282197b31c8aa00ce3677.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<section id="projet-visu_enquete_mesusage_pharma---application-de-visualisation-des-données-dune-enquête-des-mésusages-observés-au-comptoir-par-les-pharmaciens-de-ville" class="level1">
+<h1>Projet : Visu_enquete_mesusage_pharma - Application de visualisation des données d’une enquête des mésusages observés au comptoir par les pharmaciens de ville</h1>
+<section id="fonctionnement-technique-de-lapplication" class="level2">
+<h2 class="anchored" data-anchor-id="fonctionnement-technique-de-lapplication">Fonctionnement technique de l’application</h2>
+<p>Cette section décrit le fonctionnement technique de l’application : les fichiers impliqués, les fonctions appelées et leur rôle. Elle se concentre sur l’onglet <strong>MEDOC_REG</strong> (les deux autres onglets suivent la même logique).</p>
+<section id="fonctionnement-général-de-shiny-appliqué-à-cette-application" class="level3">
+<h3 class="anchored" data-anchor-id="fonctionnement-général-de-shiny-appliqué-à-cette-application">Fonctionnement général de Shiny appliqué à cette application</h3>
+<p>Dans une application R Shiny, le code est structuré selon une architecture proche du patron <strong>Modèle - Vue - Serveur (MVC)</strong> :</p>
+<ul>
+<li>l’objet <strong><code>ui</code></strong> gère l’<strong>affichage</strong> (la Vue) : structure HTML, mise en page, thème, navigation ;</li>
+<li>la fonction <strong><code>server</code></strong> gère la <strong>logique métier et la réactivité</strong> (le Contrôleur / Modèle) : chargement des données, calculs, réponses aux actions de l’utilisateur.</li>
+</ul>
+<section id="lobjet-ui-user-interface-interface-utilisateur" class="level4">
+<h4 class="anchored" data-anchor-id="lobjet-ui-user-interface-interface-utilisateur">1. L’objet <code>ui</code> (User Interface — Interface Utilisateur)</h4>
+<p>L’objet <code>ui</code> définit la structure visuelle, la mise en page HTML, le thème et la navigation de l’application.</p>
+<ul>
+<li><strong>Structure globale (<code>page_navbar</code>)</strong> :
+<ul>
+<li>crée une barre de navigation en haut de page, identifiée par <code>id = "main_navbar"</code> ;</li>
+<li>applique un thème <strong>Bootstrap 5</strong> personnalisé (<code>bslib::bs_theme</code>, bootswatch “flatly”, couleur primaire verte <code>#18bc9c</code>) ;</li>
+<li>injecte le CSS personnalisé (<code>custom.css</code>) via le <code>header</code>.</li>
+</ul></li>
+<li><strong>Onglet « Accueil » (<code>nav_panel("Accueil", ...)</code>)</strong> :
+<ul>
+<li>affiche une carte (<code>card</code>) structurée sur une grille fluide (<code>fluidRow</code>) ;</li>
+<li>présente <strong>trois cartes de raccourcis</strong> (<code>shortcut-card</code>) avec icônes et boutons d’action (<code>actionButton</code> : <code>go_medoc</code>, <code>go_lib_code_atc</code>, <code>go_focus</code>).</li>
+</ul></li>
+<li><strong>Onglets applicatifs (<code>nav_panel</code>)</strong> :
+<ul>
+<li><code>MEDOC_REG</code>, <code>LIB_CODE_ATC</code> et <code>FOCUS_IPP_LAXA_CORTICO</code> ;</li>
+<li>chaque onglet intègre la partie visuelle d’un module Shiny (via <code>mod_*_ui(...)</code>), ce qui permet <strong>d’isoler l’interface de chaque registre</strong>.</li>
+</ul></li>
+</ul>
+</section>
+<section id="la-fonction-server-logique-applicative-et-réactivité" class="level4">
+<h4 class="anchored" data-anchor-id="la-fonction-server-logique-applicative-et-réactivité">2. La fonction <code>server</code> (logique applicative et réactivité)</h4>
+<p>La fonction <code>server</code> reçoit trois arguments (<code>input</code>, <code>output</code>, <code>session</code>) et définit les comportements dynamiques de l’application en réponse aux actions de l’utilisateur.</p>
+<ul>
+<li><strong>Gestion de la navigation dynamique (<code>observeEvent</code>)</strong> :
+<ul>
+<li>écoute les clics sur les boutons de la page d’accueil (<code>input$go_medoc</code>, <code>input$go_lib_code_atc</code>, <code>input$go_focus</code>) ;</li>
+<li>utilise <code>bslib::nav_select()</code> pour basculer automatiquement l’affichage vers l’onglet correspondant dans la barre de navigation <code>main_navbar</code>.</li>
+</ul></li>
+<li><strong>Exécution de la logique métier (<code>mod_*_server</code>)</strong> :
+<ul>
+<li>appelle les fonctions serveurs de chaque module (<code>mod_medoc_reg_server</code>, <code>mod_lib_code_atc_server</code>, <code>mod_focus_ipp_laxa_cortico_server</code>) ;</li>
+<li>ces modules gèrent le <strong>chargement des données Excel</strong> associées et le <strong>traitement dynamique</strong> des tableaux ou graphiques affichés dans la <code>ui</code>.</li>
+</ul></li>
+</ul>
+</section>
+<section id="en-résumé" class="level4">
+<h4 class="anchored" data-anchor-id="en-résumé">En résumé</h4>
+<pre><code>  ┌─────────────────────────┐        Clics (input$go_medoc...)         ┌────────────────────────────┐
+  │           UI            │ ───────────────────────────────────────&gt; │           SERVER           │
+  │                         │                                          │                            │
+  │ • Structure Bootstrap   │ &lt;─────────────────────────────────────── │ • Écoute les événements    │
+  │ • Navigation &amp; Cartes   │       Changement d'onglet actif          │ • Appelle les serveurs     │
+  │ • Appel des modules UI  │          (bslib::nav_select)             │   de modules               │
+  └─────────────────────────┘                                          └────────────────────────────┘</code></pre>
+<blockquote class="blockquote">
+<p><strong>Règle de travail</strong> : si vous souhaitez modifier l’agencement d’un écran ou ajouter un nouvel onglet, tout se passe côté <strong><code>ui</code></strong>. Pour ajouter du traitement de données ou réagir à une action utilisateur, cela se gère dans le <strong><code>server</code></strong>.</p>
+</blockquote>
+</section>
+</section>
+<section id="vue-densemble-de-larchitecture" class="level3">
+<h3 class="anchored" data-anchor-id="vue-densemble-de-larchitecture">Vue d’ensemble de l’architecture</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 60%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Fichier</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>app.R</code></td>
+<td>Application Shiny principale : définit la barre d’onglets (<code>bslib::page_navbar</code>), le thème (Bootstrap 5, bootswatch “flatly”) et instancie les modules serveurs.</td>
+</tr>
+<tr class="even">
+<td><code>R/read_data.R</code></td>
+<td>Couche de lecture des fichiers Excel : regroupe les fonctions <code>read_*()</code> utilisées par les modules.</td>
+</tr>
+<tr class="odd">
+<td><code>R/colors.R</code></td>
+<td>Centralise les couleurs « métier » (genre du patient, âge, enceinte) sous forme de helpers R, en miroir des variables CSS.</td>
+</tr>
+<tr class="even">
+<td><code>R/mod_medoc_reg.R</code></td>
+<td>Module Shiny (UI + server) de l’onglet MEDOC_REG.</td>
+</tr>
+<tr class="odd">
+<td><code>R/mod_lib_code_atc.R</code></td>
+<td>Module Shiny de l’onglet LIB_CODE_ATC (logique identique).</td>
+</tr>
+<tr class="even">
+<td><code>R/mod_focus_ipp_laxa_cortico.R</code></td>
+<td>Module Shiny de l’onglet FOCUS (logique identique).</td>
+</tr>
+<tr class="odd">
+<td><code>R/mod_origine_mesusage.R</code></td>
+<td>Module Shiny de l’onglet ORIGINE MÉSUSAGE (logique identique, sans le 4e graphique « origine »).</td>
+</tr>
+<tr class="even">
+<td><code>www/custom.css</code></td>
+<td>Personnalisation CSS (navbar « type classeur », cartes, variables de couleurs <code>:root</code>).</td>
+</tr>
+<tr class="odd">
+<td><code>data/*.xlsx</code></td>
+<td>Fichiers Excel source (<code>MEDOC_REG.xlsx</code>, <code>LIB_CODE_ATC_OXOMEMAZINE.xlsx</code>, <code>principaux_facteurs.xlsx</code>, <code>FOCUS_IPP_LAXA_CORTICO.xlsx</code>, <code>origine_du_mesusage.xlsx</code>).</td>
+</tr>
+</tbody>
+</table>
+<blockquote class="blockquote">
+<p><strong>Note</strong> : depuis Shiny ≥ 1.5.0, tous les fichiers <code>.R</code> placés dans <code>R/</code> (et sous-dossiers) sont automatiquement <em>sourcés</em> au démarrage : aucune instruction <code>source()</code> n’est nécessaire dans <code>app.R</code>.</p>
+</blockquote>
+</section>
+<section id="démarrage-de-lapplication-app.r" class="level3">
+<h3 class="anchored" data-anchor-id="démarrage-de-lapplication-app.r">Démarrage de l’application (<code>app.R</code>)</h3>
+<ol type="1">
+<li>Les packages sont chargés : <code>shiny</code>, <code>bslib</code>, <code>shinycssloaders</code>.</li>
+<li>Le thème est construit avec <code>bslib::bs_theme(version = 5, bootswatch = "flatly", primary = "#18bc9c")</code>.</li>
+<li>La feuille de style <code>custom.css</code> est référencée via <code>tags$head(tags$link(...))</code>.</li>
+<li><code>page_navbar()</code> crée 5 onglets : <code>Accueil</code>, <code>MEDOC_REG</code>, <code>LIB_CODE_ATC</code>, <code>FOCUS_IPP_LAXA_CORTICO</code>, <code>ORIGINE MÉSUSAGE</code>.</li>
+<li>La page <code>Accueil</code> affiche des cartes cliquables (<code>shortcut-card</code>) avec des <code>actionButton</code> : <code>go_medoc</code>, <code>go_lib_code_atc</code>, <code>go_focus</code>, <code>go_origine</code>.</li>
+<li>Dans le serveur, <code>observeEvent()</code> sur ces boutons appelle <code>bslib::nav_select()</code> pour basculer vers l’onglet correspondant.</li>
+<li>Chaque onglet est branché sur son module : <code>mod_medoc_reg_server("medoc")</code>, etc. L’UI de l’onglet est injectée via <code>mod_medoc_reg_ui("medoc")</code>.</li>
+</ol>
+</section>
+<section id="module-medoc_reg-rmod_medoc_reg.r" class="level3">
+<h3 class="anchored" data-anchor-id="module-medoc_reg-rmod_medoc_reg.r">Module MEDOC_REG (<code>R/mod_medoc_reg.R</code>)</h3>
+<section id="ui-mod_medoc_reg_uiid" class="level4">
+<h4 class="anchored" data-anchor-id="ui-mod_medoc_reg_uiid">1. UI : <code>mod_medoc_reg_ui(id)</code></h4>
+<p>L’écran est organisé en <strong>deux zones</strong> : - <strong>Zone supérieure</strong> (classe CSS <code>.zone-tableau</code>) : contient un <code>uiOutput("etat")</code> (message d’alerte si le fichier est absent) et un <code>DTOutput("table_dci")</code> (le tableau des DCI). - <strong>Zone inférieure</strong> (classe CSS <code>.zone-graphiques</code>) : titre « Détail de la DCI sélectionnée », un <code>uiOutput("plot_msg")</code>, puis un <code>fluidRow</code> contenant <strong>7 cartes graphiques</strong>, chacune dans un bloc responsive Bootstrap 5 : - <code>col-12</code> (très petit écran → 1 graphique/ligne) ; - <code>col-md-6</code> (écran moyen → 2/ligne) ; - <code>col-xl-4</code> (grand écran → 3/ligne).</p>
+<p>Chaque carte est une <code>div.graph-card</code> contenant un <code>plotly::plotlyOutput(...)</code> de hauteur fixe 640 px, sauf la carte 6 (facteurs) dont la hauteur est pilotée dynamiquement :</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 50%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Carte</th>
+<th><code>plotlyOutput</code></th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>plot_genre</code></td>
+<td>Camembert du genre des patients (Homme / Femme / Autre).</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><code>plot_enceinte</code></td>
+<td>Camembert des données « enceinte » (Oui / Non / Non renseigné).</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>plot_age</code></td>
+<td>Barres horizontales des âges (2 niveaux hiérarchiques).</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><code>plot_origine</code></td>
+<td>Barres horizontales de l’origine du mésusage.</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td><code>plot_type</code></td>
+<td>Barres horizontales du type de mésusage (2 niveaux).</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td><code>plot_facteur</code></td>
+<td>Barres horizontales des facteurs. Précédé d’une <code>checkboxInput("facteur_afficher_tous")</code> + <code>uiOutput("plot_facteur_ui")</code>.</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td><code>plot_type_prise</code></td>
+<td>Barres horizontales du type de prise (2 niveaux).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="server-mod_medoc_reg_serverid" class="level4">
+<h4 class="anchored" data-anchor-id="server-mod_medoc_reg_serverid">2. Server : <code>mod_medoc_reg_server(id)</code></h4>
+<section id="chargement-des-données-réactives" class="level5">
+<h5 class="anchored" data-anchor-id="chargement-des-données-réactives">2.1 Chargement des données (réactives)</h5>
+<ul>
+<li><strong><code>medoc_reg()</code></strong> : appelle <code>read_medoc_reg()</code> (depuis <code>R/read_data.R</code>) une seule fois au démarrage du module. En cas d’erreur (<code>tryCatch</code>), renvoie <code>NULL</code>.</li>
+<li><strong><code>principaux_facteurs()</code></strong> : appelle <code>read_principaux_facteurs()</code> et charge le second fichier <code>principaux_facteurs.xlsx</code> (nécessaire au 6e graphique), au même moment que <code>MEDOC_REG.xlsx</code>.</li>
+</ul>
+</section>
+<section id="tableau-des-dci" class="level5">
+<h5 class="anchored" data-anchor-id="tableau-des-dci">2.2 Tableau des DCI</h5>
+<ul>
+<li><strong><code>dci_df()</code></strong> : à partir de <code>medoc_reg()</code>, filtre les lignes <code>Type_donnee == "effectif"</code>, exclut la ligne agrégée <code>"Total"</code> (périmètre global, pas une substance), ne conserve que <code>DCI</code> et <code>Total</code>, puis trie par effectif <strong>décroissant</strong>.</li>
+<li><strong><code>output$table_dci</code></strong> (<code>renderDT</code>) : génère le tableau avec <code>DT::datatable()</code>. Caractéristiques :
+<ul>
+<li><code>selection = "single"</code> → une seule ligne sélectionnable à la fois ;</li>
+<li><code>colnames</code> renomme <code>DCI</code> → « Substance (DCI) » et <code>Total</code> → « Effectif total » ;</li>
+<li><code>pageLength = 15</code> et libellés en français (plugin i18n).</li>
+</ul></li>
+<li><strong><code>output$etat</code></strong> (<code>renderUI</code>) : affiche une alerte Bootstrap (<code>.alert.alert-warning</code>) si la donnée est <code>NULL</code> (fichier introuvable/illisible).</li>
+</ul>
+</section>
+<section id="sélection-dune-dci-enchaînement" class="level5">
+<h5 class="anchored" data-anchor-id="sélection-dune-dci-enchaînement">2.3 Sélection d’une DCI (enchaînement)</h5>
+<ol type="1">
+<li><strong><code>selected_dci()</code></strong> : lit <code>input$table_dci_rows_selected</code> (index de la ligne cliquée dans DT). Renvoie le nom de la DCI (<code>dci_df()$DCI[idx]</code>), ou <code>NULL</code> si aucune ligne n’est sélectionnée.</li>
+<li><strong><code>selected_genre()</code></strong> : à partir de <code>medoc_reg()</code> et de la DCI sélectionnée, filtre la ligne <code>Type_donnee == "effectif"</code> correspondante et renvoie cette ligne (utilisée notamment pour le genre et l’enceinte).</li>
+<li><strong><code>output$plot_msg</code></strong> (<code>renderUI</code>) : si aucune DCI → message « Cliquez sur une DCI du tableau ci-dessus… ». Sinon, affiche un titre <code>.dci-title</code> avec le nom de la DCI.</li>
+</ol>
+</section>
+<section id="les-7-graphiques-réactives-de-données-puis-rendus-plotly" class="level5">
+<h5 class="anchored" data-anchor-id="les-7-graphiques-réactives-de-données-puis-rendus-plotly">2.4 Les 7 graphiques (réactives de données puis rendus Plotly)</h5>
+<p>Le schéma général : une <strong>réactive</strong> construit une dataframe « propre » (libellés, effectifs, pourcentages), puis un <strong><code>renderPlotly</code></strong> la transforme en graphique. S’il n’y a ni DCI sélectionnée ni données, chaque render renvoie <code>plotly::plotly_empty()</code>.</p>
+</section>
+<section id="graphique-1-genre-des-patients-plot_genre" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-1-genre-des-patients-plot_genre">Graphique 1 — Genre des patients (<code>plot_genre</code>)</h5>
+<ul>
+<li><strong><code>genre_values()</code></strong> : lit les colonnes par index <code>5</code> (Homme), <code>6</code> (Femme), <code>7</code> (Autre) de la ligne <code>selected_genre()</code>. Les <code>NA</code> → 0, les segments d’effectif nul sont écartés. Le <strong>pourcentage</strong> est recalculé sur le total <code>Homme + Femme + Autre</code> et <strong>formaté en français</strong> (<code>formatC</code>, virgule décimale, 1 décimale).</li>
+<li><strong><code>output$plot_genre</code></strong> : <code>plotly::plot_ly(type = "pie")</code>. Couleurs via <code>genres_colors()</code> (R/colors.R). Étiquette par secteur : <code>Libellé&lt;br&gt;Effectif (Pourcentage %)</code>. Infobulle : <code>Libellé / Effectif : … / Pourcentage : … %</code> (via <code>customdata</code>).</li>
+</ul>
+</section>
+<section id="graphique-2-données-enceinte-plot_enceinte" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-2-données-enceinte-plot_enceinte">Graphique 2 — Données « enceinte » (<code>plot_enceinte</code>)</h5>
+<ul>
+<li><strong><code>enceinte_values()</code></strong> : lit les colonnes par index <code>8</code> (Non), <code>9</code> (Oui), <code>10</code> (Non renseigné). Le pourcentage est recalculé sur le <strong>total enceinte</strong> (<code>Non + Oui + Non renseigné</code>), formaté en français.</li>
+<li><strong><code>output$plot_enceinte</code></strong> : camembert en <strong>nuances de vert</strong> via <code>enceinte_colors()</code> (R/colors.R). Même logique d’étiquette et d’infobulle que le graphique 1.</li>
+</ul>
+</section>
+<section id="graphique-3-âges-plot_age-2-niveaux-hiérarchiques" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-3-âges-plot_age-2-niveaux-hiérarchiques">Graphique 3 — Âges (<code>plot_age</code>) — 2 niveaux hiérarchiques</h5>
+<ul>
+<li><strong><code>age_values()</code></strong> : filtre la ligne <code>effectif</code> de la DCI sélectionnée, puis construit une hiérarchie codée en dur avec les libellés <strong>affichés</strong> et leurs <strong>indices de colonnes</strong> (K→T, soit 11 à 20) :
+<ul>
+<li><code>Niveau 1</code> (groupe, en gras) : <code>Total ENFANTS et ADOLESCENTS</code> / <code>Total ADULTES</code> ;</li>
+<li><code>Niveau 2</code> (détails, non gras, indentés de 4 espaces, ex. « Nouveau né ou nourrisson (0-23 mois) »).</li>
+<li>La colonne « ST JEUNES, ENFANTS » est volontairement ignorée.</li>
+<li>Deux totaux sont calculés : <code>total_mol</code> (colonne <code>4</code> de la ligne « effectif » de la DCI) et <code>total_ens</code> (colonne <code>4</code> de la ligne agrégée « Total » ; si absent, retombée sur <code>total_mol</code>).</li>
+<li>Pour <strong>chaque libellé</strong>, deux rangées sont générées : <code>Mode = "molécule"</code> (Pct = effectif/total_mol) puis <code>Mode = "ensemble des cas"</code> (Pct = effectif/total_ens). Un caractère invisible <code>\u200B</code> est ajouté au libellé de la seconde barre pour que Plotly distingue deux catégories d’axe Y visuellement identiques.</li>
+<li>Couleurs : groupes en <strong>bordeaux</strong> (<code>#8b1e2d</code>), détails en <strong>bordeaux clair</strong> (<code>#c98792</code>) pour le mode molécule ; groupes en <strong>orange</strong> (<code>#e2800f</code>), détails en <strong>orange clair</strong> (<code>#e4b279</code>) pour le mode ensemble des cas (voir <code>age_colors()</code> et <code>age_colors_ensemble()</code>).</li>
+</ul></li>
+<li><strong><code>output$plot_age</code></strong> : construit 4 traces Plotly (<code>bar</code>, <code>orientation = "h"</code>) selon les combinaisons <code>Mode × Type</code> (légende : « Molécule — groupe », « Molécule — détail », « Ensemble des cas — groupe », « Ensemble des cas — détail »). Axe Y inversé pour une lecture de haut en bas, <code>barmode = "overlay"</code>. Chaque barre porte sa valeur en % ; l’infobulle affiche libellé propre, effectif et pourcentage via <code>customdata</code>.</li>
+</ul>
+</section>
+<section id="graphique-4-origine-du-mésusage-plot_origine" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-4-origine-du-mésusage-plot_origine">Graphique 4 — Origine du mésusage (<code>plot_origine</code>)</h5>
+<ul>
+<li><strong><code>origine_values()</code></strong> : lit les colonnes <code>21</code> à <code>23</code> (U, V, W : prise / prescription / dispensation). Toutes les modalités sont de niveau <code>detail</code>. Même double calcul <code>molécule</code> / <code>ensemble des cas</code> que le graphique 3.</li>
+<li><strong><code>output$plot_origine</code></strong> : mêmes 4 traces et mêmes couleurs que <code>plot_age</code>, mais configurées pour les 3 modalités d’origine.</li>
+</ul>
+</section>
+<section id="graphique-5-type-de-mésusage-plot_type-2-niveaux-hiérarchiques" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-5-type-de-mésusage-plot_type-2-niveaux-hiérarchiques">Graphique 5 — Type de mésusage (<code>plot_type</code>) — 2 niveaux hiérarchiques</h5>
+<ul>
+<li><strong><code>type_values()</code></strong> : lit les colonnes <code>40</code> à <code>50</code> (AN→AX). Hiérarchie codée en dur :
+<ul>
+<li><code>Niveau 1</code> (groupe, gras) : <code>Total Posologie, Fréquence, durée</code> (col.&nbsp;40) et <code>Total Indication, population, CI</code> (col.&nbsp;45) ;</li>
+<li><code>Niveau 2</code> (détails) : Schéma posologique non conforme (41), Arrêt prématuré (42), Prolongation durée TT (43), Voie d’administration non conforme (44), Indication hors AMM (46), Population non prévue (47), Contre-indications (48), Interaction médicamenteuse (49), Autre (50).</li>
+<li>Double calcul <code>molécule</code> / <code>ensemble des cas</code> comme le graphique 3.</li>
+</ul></li>
+<li><strong><code>output$plot_type</code></strong> : mêmes 4 traces et couleurs.</li>
+</ul>
+</section>
+<section id="graphique-6-facteurs-de-mésusage-plot_facteur-fichier-principaux_facteurs.xlsx" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-6-facteurs-de-mésusage-plot_facteur-fichier-principaux_facteurs.xlsx">Graphique 6 — Facteurs de mésusage (<code>plot_facteur</code>) — fichier <code>principaux_facteurs.xlsx</code></h5>
+<ul>
+<li><strong><code>facteur_values()</code></strong> :
+<ul>
+<li>Récupère <code>total_mol</code> (col.&nbsp;4 de la ligne « effectif » de la DCI) et <code>total_ens</code> (ligne « Total »).</li>
+<li>Recherche la colonne dédiée à la DCI parmi les colonnes <code>135:147</code> (EE→EQ) de <code>principaux_facteurs</code> : l’en-tête (ligne 2) de chaque colonne contient le nom de la DCI. Si aucune colonne ne correspond → <code>NULL</code>.</li>
+<li>Sélectionne les lignes <code>effectif</code> (colonne C == “effectif”) en écartant l’en-tête (lignes ≤ 2) et la première ligne (agrégée).</li>
+<li>Applique le <strong>mapping des libellés courts</strong> (du cahier des charges, ex. « Manque d’info. ou com. interprofessionnelle ») <strong>par position</strong> (ordre du fichier = ordre de la référence), pour robustesse vis-à-vis des espaces insécables.</li>
+<li>Calcule <code>eff_dci</code> (valeur dans la colonne de la DCI) et <code>eff_global</code> (colonne <code>4</code>, “Total”).</li>
+<li><strong>Trie par pourcentage décroissant</strong> (critère = barre molécule).</li>
+<li>Génère, pour chaque facteur, deux barres : <code>molécule</code> puis <code>ensemble des cas</code> (avec <code>\u200B</code>).</li>
+</ul></li>
+<li><strong><code>facteur_height()</code></strong> : hauteur de la carte selon l’état de la checkbox : <code>820px</code> (15 premiers facteurs) ou <code>1000px</code> (déplié, 29 facteurs).</li>
+<li><strong><code>facteur_plot_data()</code></strong> : extrait de <code>facteur_values()</code> le sous-ensemble tracé : <strong>30 lignes</strong> (15 facteurs × 2 barres) par défaut, ou la totalité (58 = 29 × 2) si la case est cochée. Les données étant déjà triées par % décroissant, garder les premières lignes = garder les 15 plus grands pourcentages.</li>
+<li><strong><code>output$plot_facteur_ui</code></strong> (<code>renderUI</code>) : injecte <code>plotlyOutput("plot_facteur")</code> avec la hauteur issue de <code>facteur_height()</code>.</li>
+<li><strong><code>output$plot_facteur</code></strong> : barres horizontales avec <code>textposition = "outside"</code> et <code>outsidetextfont</code> de taille 17 pour que les pourcentages restent lisibles même en mode déplié ; axe X <code>range = c(0, 115)</code>. Tous les facteurs sont de <code>Type = "detail"</code> (pas de hiérarchie).</li>
+</ul>
+</section>
+<section id="graphique-7-type-de-prise-plot_type_prise-2-niveaux-hiérarchiques" class="level5">
+<h5 class="anchored" data-anchor-id="graphique-7-type-de-prise-plot_type_prise-2-niveaux-hiérarchiques">Graphique 7 — Type de prise (<code>plot_type_prise</code>) — 2 niveaux hiérarchiques</h5>
+<ul>
+<li><strong><code>type_prise_values()</code></strong> : lit les colonnes <code>24</code> à <code>30</code> (X→AD). Hiérarchie codée en dur :
+<ul>
+<li><code>Niveau 1</code> (groupe, gras) : <code>Prise avec ordonnance</code> (col.&nbsp;24) et <code>Prise sans ordonnance</code> (col.&nbsp;27) ;</li>
+<li><code>Niveau 2</code> (détails) : Primo prescription (25), Renouvellement (26), Sans ordo en automédication (28), Sur conseil du pharmacien (29), Je ne sais pas (30).</li>
+<li>Double calcul <code>molécule</code> / <code>ensemble des cas</code>.</li>
+</ul></li>
+<li><strong><code>output$plot_type_prise</code></strong> : mêmes 4 traces et couleurs.</li>
+</ul>
+</section>
+</section>
+<section id="couleurs-et-css" class="level4">
+<h4 class="anchored" data-anchor-id="couleurs-et-css">2.5 Couleurs et CSS</h4>
+<p>Les couleurs sont définies <strong>deux fois</strong>, de façon cohérente : - Dans <code>www/custom.css</code> (bloc <code>:root</code>) : variables CSS <code>--couleur-homme</code> (rgb(0,70,103)), <code>--couleur-femme</code> (rgb(45,131,14)), <code>--couleur-autre</code> (rgb(255,149,43)), <code>--couleur-groupe</code> (#8b1e2d), <code>--couleur-detail</code> (#c98792), <code>--couleur-groupe-ensemble</code> (#e2800f), <code>--couleur-detail-ensemble</code> (#e4b279), et les nuances d’enceinte (<code>--couleur-enceinte-oui/non/nr</code>). - Dans <code>R/colors.R</code> : helpers R <code>genres_colors()</code>, <code>age_colors()</code>, <code>age_colors_ensemble()</code>, <code>enceinte_colors()</code> qui reflètent ces mêmes valeurs (nécessaire car Plotly ne lit pas les variables CSS).</p>
+</section>
+<section id="retour-exposé-du-module" class="level4">
+<h4 class="anchored" data-anchor-id="retour-exposé-du-module">2.6 Retour exposé du module</h4>
+<p>À la fin de <code>mod_medoc_reg_server()</code>, un <code>list(...)</code> renvoie les réactives internes (ex. <code>dci_df</code>, <code>medoc_reg</code>, <code>principaux_facteurs</code>, <code>selected_dci</code>, <code>facteur_values</code>, <code>facteur_plot_data</code>, <code>facteur_height</code>) afin de permettre les tests via <code>shiny::testServer</code>. Ce retour est <strong>inoffensif en production</strong> (ignoré par <code>shiny::runApp</code>).</p>
+</section>
+</section>
+<section id="récapitulatif-du-cycle-de-traitement-de-longlet-medoc_reg" class="level3">
+<h3 class="anchored" data-anchor-id="récapitulatif-du-cycle-de-traitement-de-longlet-medoc_reg">Récapitulatif du cycle de traitement de l’onglet MEDOC_REG</h3>
+<ol type="1">
+<li>Au lancement, <code>medoc_reg()</code> et <code>principaux_facteurs()</code> chargent les deux fichiers Excel.</li>
+<li><code>dci_df()</code> construit le tableau des DCI (effectif, tri décroissant, sans “Total”).</li>
+<li>L’utilisateur clique sur une ligne → <code>selected_dci()</code> retourne la DCI.</li>
+<li>Les 7 réactives de données calculent chacune leurs effectifs / pourcentages pour cette DCI (avec, pour les graphiques en barres, le double mode molécule / ensemble des cas).</li>
+<li>Les 7 <code>renderPlotly</code> produisent les graphiques (camemberts ou barres horizontales), affichés dans la grille responsive de la zone inférieure.</li>
+<li>Pour le graphique facteur, la checkbox permet de déplier les 29 facteurs et ajuste la hauteur de la carte.</li>
+</ol>
+<blockquote class="blockquote">
+<p><strong>Remarque sur les autres onglets</strong> : <code>mod_lib_code_atc.R</code> et <code>mod_focus_ipp_laxa_cortico.R</code> reproduisent exactement la même logique, avec simplement des sources de données et des indices de colonnes différents (cf.&nbsp;<code>read_lib_code_atc()</code> et <code>read_focus_ipp_laxa_cortico()</code> dans <code>R/read_data.R</code>, ainsi que les colonnes dédiées aux facteurs et au type de prise de chaque fichier).</p>
+</blockquote>
+</section>
+<section id="module-origine-mésusage-rmod_origine_mesusage.r" class="level3">
+<h3 class="anchored" data-anchor-id="module-origine-mésusage-rmod_origine_mesusage.r">Module ORIGINE MÉSUSAGE (<code>R/mod_origine_mesusage.R</code>)</h3>
+<p>L’onglet <strong>ORIGINE MÉSUSAGE</strong> reproduit la même logique que les onglets précédents, avec pour seul critère de sélection l’<strong>origine du mésusage</strong> (au lieu de la DCI / du libellé ATC / du focus).</p>
+<section id="ui-mod_origine_mesusage_uiid" class="level4">
+<h4 class="anchored" data-anchor-id="ui-mod_origine_mesusage_uiid">1. UI : <code>mod_origine_mesusage_ui(id)</code></h4>
+<ul>
+<li><strong>Zone supérieure</strong> (<code>.zone-tableau</code>) : <code>uiOutput("etat")</code> + <code>DTOutput("table_origine")</code>, qui liste les 3 origines avec leur <strong>libellé court</strong> (<code>origine_libelle_court()</code>) et leur effectif total, triées par effectif décroissant.</li>
+<li><strong>Zone inférieure</strong> (<code>.zone-graphiques</code>) : titre « Détail de l’origine sélectionnée », <code>uiOutput("plot_msg")</code>, puis un <code>fluidRow</code> responsive contenant <strong>6 cartes graphiques</strong> (le 4e graphique « origine » est volontairement <strong>absent</strong>, l’origine étant précisément le critère de sélection) :</li>
+</ul>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 50%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Carte</th>
+<th><code>plotlyOutput</code></th>
+<th>Contenu</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>plot_genre</code></td>
+<td>Camembert du genre (Homme / Femme / Autre).</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><code>plot_enceinte</code></td>
+<td>Camembert « enceinte » (Oui / Non / Non renseigné).</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>plot_age</code></td>
+<td>Barres horizontales des âges (2 niveaux).</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td><code>plot_type</code></td>
+<td>Barres horizontales du type de mésusage (2 niveaux).</td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td><code>plot_facteur</code></td>
+<td>Barres horizontales des facteurs (<code>checkboxInput</code> + <code>uiOutput("plot_facteur_ui")</code>).</td>
+</tr>
+<tr class="even">
+<td>7</td>
+<td><code>plot_type_prise</code></td>
+<td>Barres horizontales du type de prise (2 niveaux).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="server-mod_origine_mesusage_serverid" class="level4">
+<h4 class="anchored" data-anchor-id="server-mod_origine_mesusage_serverid">2. Server : <code>mod_origine_mesusage_server(id)</code></h4>
+<ul>
+<li><strong><code>origine_data()</code></strong> : charge <code>origine_du_mesusage.xlsx</code> (<code>read_origine_mesusage()</code>), ajoute une colonne <code>Origine</code> (libellé <strong>complet</strong>, colonne B / index 2) pour identifier chaque ligne, et une colonne <code>Type_donnee</code>.</li>
+<li><strong><code>principaux_facteurs()</code></strong> : charge <code>principaux_facteurs.xlsx</code> (<code>read_principaux_facteurs()</code>) au même moment que <code>origine_du_mesusage.xlsx</code> (nécessaire au 6e graphique).</li>
+<li><strong><code>origine_df()</code></strong> : ne conserve que les lignes <code>Type_donnee == "effectif"</code> hors ligne agrégée « Total », associe le libellé court (<code>origine_libelle_court()</code>) et trie par effectif décroissant.</li>
+<li><strong><code>selected_origine()</code></strong> : libellé <strong>complet</strong> de l’origine cliquée (index <code>table_origine_rows_selected</code>) ; <code>selected_origine_court()</code> en fournit la version courte.</li>
+<li><strong><code>genre_values()</code> / <code>enceinte_values()</code></strong> : camemberts 1 et 2 (index 5-7 et 8-10 de la ligne « effectif » de l’origine).</li>
+<li><strong><code>age_values()</code> / <code>type_values()</code> / <code>type_prise_values()</code></strong> : barres à 2 modes (index 11, 13-20 / 40-50 / 24-30), comme dans les onglets précédents.</li>
+<li><strong><code>facteur_values()</code></strong> : barres des facteurs. La liaison se fait par la <strong>colonne dédiée</strong> parmi les colonnes <strong>U→W (indices 21 à 23)</strong> de <code>principaux_facteurs</code> : l’en-tête (ligne 2) de la colonne vaut exactement le libellé <strong>complet</strong> de l’origine. Les libellés courts sont appliqués <strong>par position</strong> (ordre du fichier), pour robustesse face aux espaces insécables.</li>
+<li><strong><code>facteur_height()</code> / <code>facteur_plot_data()</code></strong> : pilotent la hauteur (15 premiers facteurs vs dépliés) et le sous-ensemble affiché du 6e graphique.</li>
+</ul>
+<p>Le reste (traces plotly, libellés courts appliqués par position, retour exposé pour <code>testServer</code>) est identique aux modules MEDOC_REG / LIB_CODE_ATC / FOCUS.</p>
+</section>
+<section id="titres-des-graphiques-multi-lignes" class="level4">
+<h4 class="anchored" data-anchor-id="titres-des-graphiques-multi-lignes">3. Titres des graphiques multi-lignes</h4>
+<p>Les titres des 6 graphiques de l’onglet (genre, « enceinte », âge, type, type de prise, facteur) peuvent dépasser la largeur de la carte (ex. « Répartition par âge — Au moment de la dispensation en pharmacie »). Ils sont donc affichés sur <strong>2 à 3 lignes</strong> pour en montrer l’intégralité, via deux helpers définis dans <code>R/colors.R</code> :</p>
+<ul>
+<li><strong><code>wrap_titre(x)</code></strong> : découpe chaque titre sur 2-3 lignes en insérant des <code>&lt;br&gt;</code> (réutilise la logique de <code>wrap_libelle()</code> avec une largeur de ligne plus généreuse, <code>max_width = 30</code>).</li>
+<li><strong><code>titre_margin_top(x)</code></strong> : calcule la marge supérieure <code>t</code> (en px) nécessaire pour accueillir le titre sur son nombre de lignes (<code>base = 50</code> + <code>par_ligne = 20</code> par ligne supplémentaire).</li>
+</ul>
+<p>Dans chaque <code>plotly::layout(...)</code> du module origine, on applique :</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>titre <span class="ot">&lt;-</span> <span class="fu">wrap_titre</span>(<span class="fu">paste</span>(<span class="st">"Répartition par … —"</span>, origine))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>p <span class="sc">%&gt;%</span> plotly<span class="sc">::</span><span class="fu">layout</span>(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">title =</span> titre,                                  <span class="co"># chaîne avec &lt;br&gt; (multi-lignes)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">margin =</span> <span class="fu">list</span>(<span class="at">l =</span> <span class="dv">20</span>, <span class="at">r =</span> <span class="dv">20</span>, <span class="at">t =</span> <span class="fu">titre_margin_top</span>(titre), <span class="at">b =</span> <span class="dv">20</span>),</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  ...</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Point important</strong> : on passe le titre en <strong>chaîne simple</strong> (<code>title = titre</code>), <strong>sans</strong> <code>automargin = TRUE</code>. En cumulant <code>automargin</code> (qui calcule lui-même une marge) <em>et</em> une marge manuelle <code>t = titre_margin_top(titre)</code>, les deux marges s’additionnaient : le titre était poussé trop haut et la première ligne <strong>sortait de la carte</strong> par le haut. En ne réservant que la marge manuelle calculée, le titre multi-lignes reste intégralement contenu dans la carte.</p>
+</section>
+</section>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

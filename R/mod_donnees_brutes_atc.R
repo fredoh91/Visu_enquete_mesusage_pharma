@@ -360,10 +360,20 @@ mod_donnees_brutes_atc_server <- function(id, theme, n_facteurs = 10) {
         stringsAsFactors = FALSE
       )
       # Effectif des groupes = somme des tranches fines correspondantes.
+      # (NB : un défaut d'index faisait auparavant ne sommer qu'une seule
+      #  tranche par groupe. On somme désormais explicitement les tranches
+      #  fines de chaque groupe, à l'instar des graph Types / Type d'obtention.)
+      #   Total ENFANTS et ADOLESCENTS -> tranches 1, 2, 3
+      #                                   (Nouveau né, 2-11 ans, 12-17 ans)
+      #   Total ADULTES                -> tranches 4, 5, 6, 7
+      #                                   (18-34, 35-49, 50-64, 65 ans et plus)
+      groupe_tranches <- list(
+        `1` = c(1L, 2L, 3L),
+        `4` = c(4L, 5L, 6L, 7L)
+      )
       eff <- vapply(seq_len(nrow(defs)), function(k) {
         if (defs$Niveau[k] == 1L) {
-          idx <- which(defs$Index == defs$Index[k] & defs$Niveau == 2L)
-          sum(eff_t[idx])
+          sum(eff_t[groupe_tranches[[as.character(defs$Index[k])]]])
         } else {
           eff_t[defs$Index[k]]
         }
