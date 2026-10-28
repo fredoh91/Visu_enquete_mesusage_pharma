@@ -25,9 +25,13 @@
 #' @export
 genres_colors <- function() {
   c(
-    Homme = "#004667",   # rgb(0, 70, 103)  — bleu foncé
-    Femme = "#2d830e",   # rgb(45, 131, 14) — vert
-    Autre = "#ff952b"    # rgb(255, 149, 43) — orange
+    # --- Anciennes couleurs (conservées en commentaire) ---
+    # Homme = "#004667",   # rgb(0, 70, 103)  — bleu foncé
+    # Femme = "#2d830e",   # rgb(45, 131, 14) — vert
+    # Autre = "#ff952b"    # rgb(255, 149, 43) — orange
+    Homme = "#2784F5",     # nouvelle couleur Homme
+    Femme = "#FF69B4",     # nouvelle couleur Femme
+    Autre = "#808080"      # nouvelle couleur Autre (gris)
   )
 }
 
@@ -47,8 +51,11 @@ genres_colors <- function() {
 #' @export
 age_colors <- function() {
   c(
-    groupe = "#8b1e2d",   # var(--couleur-groupe) — bordeaux soutenu
-    detail = "#c98792"    # var(--couleur-detail) — bordeaux clair
+    # --- Anciennes couleurs (conservées en commentaire) ---
+    # groupe = "#8b1e2d",   # var(--couleur-groupe) — bordeaux soutenu
+    # detail = "#c98792"    # var(--couleur-detail) — bordeaux clair
+    groupe = "#DC143C",     # nouvelle couleur niveau 1 (molécule - groupe)
+    detail = "#F594A7"      # nouvelle couleur niveau 2 (molécule - détail)
   )
 }
 
@@ -71,8 +78,11 @@ age_colors <- function() {
 #' @export
 age_colors_ensemble <- function() {
   c(
-    groupe = "#e2800f",   # var(--couleur-groupe-ensemble) — orange soutenu
-    detail = "#e4b279"    # var(--couleur-detail-ensemble) — orange clair
+    # --- Anciennes couleurs (conservées en commentaire) ---
+    # groupe = "#e2800f",   # var(--couleur-groupe-ensemble) — orange soutenu
+    # detail = "#e4b279"    # var(--couleur-detail-ensemble) — orange clair
+    groupe = "#8630FF",     # nouvelle couleur niveau 1 (ensemble des cas - groupe)
+    detail = "#BB8AFF"      # nouvelle couleur niveau 2 (ensemble des cas - détail)
   )
 }
 
@@ -89,9 +99,13 @@ age_colors_ensemble <- function() {
 #' @export
 enceinte_colors <- function() {
   c(
-    Oui            = "#2d830e",   # var(--couleur-enceinte-oui) — vert femme
-    Non            = "#1b5e09",   # var(--couleur-enceinte-non) — vert foncé
-    `Non renseigné` = "#6fae48"   # var(--couleur-enceinte-nr)  — vert clair
+    # --- Anciennes couleurs (conservées en commentaire) ---
+    # Oui            = "#2d830e",   # var(--couleur-enceinte-oui) — vert femme
+    # Non            = "#1b5e09",   # var(--couleur-enceinte-non) — vert foncé
+    # `Non renseigné` = "#6fae48"   # var(--couleur-enceinte-nr)  — vert clair
+    Oui             = "#FF69B4",    # nouvelle couleur Oui
+    Non             = "#B4FF69",    # nouvelle couleur Non
+    `Non renseigné` = "#D3D3D3"     # nouvelle couleur Non renseigné
   )
 }
 

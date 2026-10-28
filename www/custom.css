@@ -487,27 +487,43 @@ table.dataTable tbody tr.selected td {
    R/colors.R, qui doit rester en phase avec ce bloc (mêmes couleurs RVB).
    ---------------------------------------------------------------------------- */
 :root {
+  /* --- Anciennes couleurs (conservées en commentaire) --- */
   /* Homme — bleu foncé */
-  --couleur-homme: rgb(0, 70, 103);
+  /* --couleur-homme: rgb(0, 70, 103); */
   /* Femme — vert */
-  --couleur-femme: rgb(45, 131, 14);
+  /* --couleur-femme: rgb(45, 131, 14); */
   /* Autre — orange */
-  --couleur-autre: rgb(255, 149, 43);
-  /* Niveau 1 des groupes d'âge (ex. "ST ENFANTS, ADOLESCENTS", "ST ADULTES")
-     — bordeaux soutenu (volontairement éloigné des couleurs du genre,
-     notamment du vert "Femme"). */
-  --couleur-groupe: #8b1e2d;
-  /* Niveau 2 des détails d'âge (barres de 2e niveau) — bordeaux clair assorti. */
-  --couleur-detail: #c98792;
-  /* Seconde barre d'âge « ensemble des cas » (pourcentages sur l'effectif total
-     de l'enquête) — nuances d'orange, distinctes des bordeaux du mode
-     « molécule », afin de différencier les deux modes de calcul. */
-  --couleur-groupe-ensemble: #e2800f;  /* orange soutenu */
-  --couleur-detail-ensemble:  #e4b279; /* orange clair */
-  /* Répartition "enceinte" (sous-détail du secteur Femme) — nuances de vert
-     déclinées à partir du vert "Femme" (--couleur-femme). */
-  --couleur-enceinte-oui: #2d830e;   /* vert femme (référence) */
-  --couleur-enceinte-non: #1b5e09;   /* vert foncé */
-  --couleur-enceinte-nr:  #6fae48;   /* vert clair */
+  /* --couleur-autre: rgb(255, 149, 43); */
+  /* Niveau 1 des groupes d'âge — bordeaux soutenu */
+  /* --couleur-groupe: #8b1e2d; */
+  /* Niveau 2 des détails d'âge — bordeaux clair assorti. */
+  /* --couleur-detail: #c98792; */
+  /* Seconde barre d'âge « ensemble des cas » — nuances d'orange */
+  /* --couleur-groupe-ensemble: #e2800f;  orange soutenu */
+  /* --couleur-detail-ensemble:  #e4b279; orange clair */
+  /* Répartition "enceinte" — nuances de vert */
+  /* --couleur-enceinte-oui: #2d830e;  vert femme (référence) */
+  /* --couleur-enceinte-non: #1b5e09;  vert foncé */
+  /* --couleur-enceinte-nr:  #6fae48;  vert clair */
+
+  /* --- Nouvelles couleurs --- */
+  /* Homme */
+  --couleur-homme: #2784F5;
+  /* Femme */
+  --couleur-femme: #FF69B4;
+  /* Autre */
+  --couleur-autre: #808080;
+  /* Niveau 1 des groupes d'âge (molécule) */
+  --couleur-groupe: #DC143C;
+  /* Niveau 2 des détails d'âge (molécule) */
+  --couleur-detail: #F594A7;
+  /* Seconde barre (ensemble des cas) — niveau 1 groupe */
+  --couleur-groupe-ensemble: #8630FF;
+  /* Seconde barre (ensemble des cas) — niveau 2 détail */
+  --couleur-detail-ensemble:  #BB8AFF;
+  /* Répartition "enceinte" */
+  --couleur-enceinte-oui: #FF69B4;  /* Oui */
+  --couleur-enceinte-non: #B4FF69;  /* Non */
+  --couleur-enceinte-nr:  #D3D3D3;  /* Non renseigné */
 }
 
